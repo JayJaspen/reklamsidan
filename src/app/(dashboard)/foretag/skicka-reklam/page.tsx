@@ -1,0 +1,485 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { Upload, Send, Users } from 'lucide-react'
+import { SWEDISH_COUNTIES } from '@/lib/utils'
+
+const AGE_GROUPS = ['18-25', '26-35', '36-45', '46-55', '56-65', '65+']
+const GENDERS = [
+  { value: 'man', label: 'Man' },
+  { value: 'kvinna', label: 'Kvinna' },
+  { value: 'annat', label: 'Annat' },
+]
+
+type TargetingSettings = {
+  type: 'b2c' | 'b2b'
+  genders: string[]
+  ageGroups: string[]
+  counties: string[]
+  categories: number[]
+}
+
+export default function SkickaReklam() {
+  const supabase = createClient()
+  const [userId, setUserId] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [adName, setAdName] = useState('')
+  const [validFrom, setValidFrom] = useState('')
+  const [validTo, setValidTo] = useState('')
+  const [targeting, setTargeting] = useState<TargetingSettings>({
+    type: 'b2c',
+    genders: [],
+    ageGroups: [],
+    counties: [],
+    categories: [],
+  })
+  const [categories, setCategories] = useState<{ id: number; name: string; parent_id: number | null }[]>([])
+  const [audienceCount, setAudienceCount] = useState(0)
+  const [uploading, setUploading] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      setUserId(user.id)
+
+      // Fetch categories
+      const { data: catData } = await supabase
+        .from(targeting.type === 'b2c' ? 'categories_b2c' : 'categories_b2b')
+        .select('id,name,parent_id')
+        .eq('is_active', true)
+        .order('sort_order')
+
+      if (catData) setCategories(catData)
+    })
+  }, [])
+
+  useEffect(() => {
+    // Fetch categories when type changes
+    supabase
+      .from(targeting.type === 'b2c' ? 'categories_b2c' : 'categories_b2b')
+      .select('id,name,parent_id')
+      .eq('is_active', true)
+      .order('sort_order')
+      .then(({ data }) => {
+        if (data) setCategories(data)
+      })
+  }, [targeting.type])
+
+  useEffect(() => {
+    calculateAudienceCount()
+  }, [targeting])
+
+  async function calculateAudienceCount() {
+    if (targeting.type === 'b2c') {
+      // For B2C: gender AND age AND counties
+      let query = supabase.from('users_b2c').select('id', { count: 'exact', head: true })
+
+      if (targeting.genders.length > 0) {
+        query = query.in('gender', targeting.genders)
+      }
+
+      if (targeting.counties.length > 0) {
+        query = query.in('county_id', targeting.counties.map(c => {
+          const idx = SWEDISH_COUNTIES.indexOf(c)
+          return idx + 1
+        }))
+      }
+
+      const { count } = await query
+      setAudienceCount(count ?? 0)
+    } else {
+      // For B2B: categories
+      if (targeting.categories.length === 0) {
+        setAudienceCount(0)
+        return
+      }
+
+      const { data: users } = await supabase
+        .from('users_b2b_categories')
+        .select('user_id')
+        .in('category_id', targeting.categories)
+
+      const uniqueUsers = new Set(users?.map(u => u.user_id) ?? [])
+      setAudienceCount(uniqueUsers.size)
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!userId || !file || !adName || !validFrom || !validTo) {
+      alert('Fyll i alla obligatoriska fält')
+      return
+    }
+
+    setUploading(true)
+
+    try {
+      // Upload file to storage
+      const fileName = `${Date.now()}-${file.name}`
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('ads')
+        .upload(fileName, file)
+
+      if (uploadError) throw uploadError
+
+      const fileUrl = supabase.storage.from('ads').getPublicUrl(fileName).data.publicUrl
+
+      // Create ad record
+      const { data: adData, error: adError } = await supabase
+        .from('ads')
+        .insert({
+          company_id: userId,
+          name: adName,
+          file_url: fileUrl,
+          file_type: file.type.split('/')[1],
+          ad_type: targeting.type,
+          valid_from: validFrom,
+          valid_to: validTo,
+        })
+        .select()
+        .single()
+
+      if (adError) throw adError
+
+      // Add targeting data
+      if (targeting.type === 'b2c') {
+        if (targeting.genders.length > 0) {
+          await supabase.from('ad_target_genders_b2c').insert(
+            targeting.genders.map(g => ({ ad_id: adData.id, gender: g }))
+          )
+        }
+
+        if (targeting.ageGroups.length > 0) {
+          await supabase.from('ad_target_ages_b2c').insert(
+            targeting.ageGroups.map(a => ({ ad_id: adData.id, age_group: a }))
+          )
+        }
+
+        if (targeting.counties.length > 0) {
+          await supabase.from('ad_target_counties_b2c').insert(
+            targeting.counties.map(c => ({
+              ad_id: adData.id,
+              county_id: SWEDISH_COUNTIES.indexOf(c) + 1,
+            }))
+          )
+        }
+
+        if (targeting.categories.length > 0) {
+          await supabase.from('ad_target_categories_b2c').insert(
+            targeting.categories.map(cat => ({ ad_id: adData.id, category_id: cat }))
+          )
+        }
+      } else {
+        if (targeting.categories.length > 0) {
+          await supabase.from('ad_target_categories_b2b').insert(
+            targeting.categories.map(cat => ({ ad_id: adData.id, category_id: cat }))
+          )
+        }
+
+        if (targeting.counties.length > 0) {
+          await supabase.from('ad_target_counties_b2b').insert(
+            targeting.counties.map(c => ({
+              ad_id: adData.id,
+              county_id: SWEDISH_COUNTIES.indexOf(c) + 1,
+            }))
+          )
+        }
+      }
+
+      setSubmitted(true)
+      setFile(null)
+      setAdName('')
+      setValidFrom('')
+      setValidTo('')
+      setTargeting({ type: 'b2c', genders: [], ageGroups: [], counties: [], categories: [] })
+
+      setTimeout(() => setSubmitted(false), 3000)
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Fel vid skapande av annons')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const mainCats = categories.filter(c => c.parent_id === null)
+  const subCats = (pid: number) => categories.filter(c => c.parent_id === pid)
+
+  return (
+    <div className="max-w-2xl">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <Send className="h-6 w-6 text-green-600" /> Skicka reklam
+        </h1>
+        <p className="text-sm text-gray-500">Skapa och publicera en ny reklamkampanj</p>
+      </div>
+
+      {submitted && (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
+          Annons skapad! Du kan nu se den i din statistik.
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* File upload */}
+        <div className="card p-6">
+          <h2 className="mb-4 text-sm font-semibold text-gray-700 uppercase tracking-wide">Mediainnehål</h2>
+          <label className="block">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-primary-500 transition">
+              <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+              <p className="text-sm font-medium text-gray-700">
+                {file ? file.name : 'Klicka eller dra för att ladda upp'}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">PDF, JPG, PNG, eller MP4</p>
+            </div>
+            <input
+              type="file"
+              className="hidden"
+              accept=".pdf,.jpg,.jpeg,.png,.mp4"
+              onChange={e => setFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+        </div>
+
+        {/* Ad details */}
+        <div className="card p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Annonsdetaljer</h2>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-600">Annonsnamn</label>
+            <input
+              type="text"
+              className="input-field"
+              value={adName}
+              onChange={e => setAdName(e.target.value)}
+              placeholder="t.ex. Sommarkampanj 2026"
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-600">Gäller från</label>
+              <input
+                type="date"
+                className="input-field"
+                value={validFrom}
+                onChange={e => setValidFrom(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-600">Gäller till</label>
+              <input
+                type="date"
+                className="input-field"
+                value={validTo}
+                onChange={e => setValidTo(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Targeting type */}
+        <div className="card p-6">
+          <h2 className="mb-4 text-sm font-semibold text-gray-700 uppercase tracking-wide">Målgrupp</h2>
+          <div className="flex gap-4 mb-6">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="type"
+                value="b2c"
+                checked={targeting.type === 'b2c'}
+                onChange={() => setTargeting(t => ({ ...t, type: 'b2c' }))}
+                className="h-4 w-4"
+              />
+              <span className="text-sm text-gray-700">B2C (Konsumenter)</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="type"
+                value="b2b"
+                checked={targeting.type === 'b2b'}
+                onChange={() => setTargeting(t => ({ ...t, type: 'b2b' }))}
+                className="h-4 w-4"
+              />
+              <span className="text-sm text-gray-700">B2B (Företag)</span>
+            </label>
+          </div>
+
+          {/* B2C targeting */}
+          {targeting.type === 'b2c' && (
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-600">Kön</label>
+                <div className="space-y-2">
+                  {GENDERS.map(g => (
+                    <label key={g.value} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={targeting.genders.includes(g.value)}
+                        onChange={e => setTargeting(t => ({
+                          ...t,
+                          genders: e.target.checked
+                            ? [...t.genders, g.value]
+                            : t.genders.filter(x => x !== g.value),
+                        }))}
+                        className="h-4 w-4 rounded"
+                      />
+                      <span className="text-sm text-gray-700">{g.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-600">Åldersgrupper</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {AGE_GROUPS.map(age => (
+                    <label key={age} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={targeting.ageGroups.includes(age)}
+                        onChange={e => setTargeting(t => ({
+                          ...t,
+                          ageGroups: e.target.checked
+                            ? [...t.ageGroups, age]
+                            : t.ageGroups.filter(x => x !== age),
+                        }))}
+                        className="h-4 w-4 rounded"
+                      />
+                      <span className="text-sm text-gray-700">{age}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-600">Län</label>
+                <select
+                  multiple
+                  className="input-field"
+                  value={targeting.counties}
+                  onChange={e => setTargeting(t => ({
+                    ...t,
+                    counties: Array.from(e.target.selectedOptions, o => o.value),
+                  }))}
+                  size={5}
+                >
+                  {SWEDISH_COUNTIES.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-400">Håll Ctrl/Cmd för att välja flera</p>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-600">Kategorier</label>
+                <div className="max-h-40 overflow-y-auto space-y-3">
+                  {mainCats.map(main => (
+                    <div key={main.id}>
+                      <p className="text-xs font-bold uppercase text-gray-400 mb-1">{main.name}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {subCats(main.id).map(sub => (
+                          <label key={sub.id} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={targeting.categories.includes(sub.id)}
+                              onChange={e => setTargeting(t => ({
+                                ...t,
+                                categories: e.target.checked
+                                  ? [...t.categories, sub.id]
+                                  : t.categories.filter(x => x !== sub.id),
+                              }))}
+                              className="h-4 w-4 rounded"
+                            />
+                            <span className="text-sm text-gray-700">{sub.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* B2B targeting */}
+          {targeting.type === 'b2b' && (
+            <div className="space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-600">Kategorier</label>
+                <div className="max-h-40 overflow-y-auto space-y-3">
+                  {mainCats.map(main => (
+                    <div key={main.id}>
+                      <p className="text-xs font-bold uppercase text-gray-400 mb-1">{main.name}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {subCats(main.id).map(sub => (
+                          <label key={sub.id} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={targeting.categories.includes(sub.id)}
+                              onChange={e => setTargeting(t => ({
+                                ...t,
+                                categories: e.target.checked
+                                  ? [...t.categories, sub.id]
+                                  : t.categories.filter(x => x !== sub.id),
+                              }))}
+                              className="h-4 w-4 rounded"
+                            />
+                            <span className="text-sm text-gray-700">{sub.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-600">Län</label>
+                <select
+                  multiple
+                  className="input-field"
+                  value={targeting.counties}
+                  onChange={e => setTargeting(t => ({
+                    ...t,
+                    counties: Array.from(e.target.selectedOptions, o => o.value),
+                  }))}
+                  size={5}
+                >
+                  {SWEDISH_COUNTIES.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-400">Håll Ctrl/Cmd för att välja flera</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Audience counter */}
+        <div className="card p-4 bg-blue-50 border border-blue-200 flex items-start gap-3">
+          <Users className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-blue-900">Målgrupp</p>
+            <p className="text-2xl font-bold text-blue-600">{audienceCount.toLocaleString('sv-SE')}</p>
+            <p className="text-xs text-blue-700">användare matchar dina targetingkriteria</p>
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={uploading || !file || !adName || !validFrom || !validTo}
+          className="btn-primary w-full py-3 gap-2"
+        >
+          <Send className="h-4 w-4" />
+          {uploading ? 'Publicerar...' : 'Publicera annons'}
+        </button>
+      </form>
+    </div>
+  )
+}
