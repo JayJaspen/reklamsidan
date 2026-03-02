@@ -34,20 +34,28 @@ export default async function B2BIntresse() {
     )
   }
 
+  // Hämta matchande annons-IDs och slängda annonser separat
+  const [{ data: matchingAds }, { data: discarded }] = await Promise.all([
+    supabase.from('ad_target_categories_b2b').select('ad_id').in('category_id', catIds),
+    supabase.from('discarded_ads').select('ad_id').eq('user_id', user.id),
+  ])
+
+  const matchingIds = [...new Set((matchingAds ?? []).map(r => r.ad_id))]
+  const discardedIds = (discarded ?? []).map(d => d.ad_id)
+
   // Annonser vars kategorier matchar användarens intressen
-  const { data: ads } = await supabase
+  let query = supabase
     .from('active_ads')
     .select('*')
     .eq('ad_type', 'b2b')
-    .in('id',
-      supabase.from('ad_target_categories_b2b')
-        .select('ad_id')
-        .in('category_id', catIds)
-    )
-    .not('id', 'in',
-      supabase.from('discarded_ads').select('ad_id').eq('user_id', user.id)
-    )
+    .in('id', matchingIds.length > 0 ? matchingIds : ['00000000-0000-0000-0000-000000000000'])
     .order('valid_to')
+
+  if (discardedIds.length > 0) {
+    query = query.not('id', 'in', `(${discardedIds.join(',')})`)
+  }
+
+  const { data: ads } = await query
 
   return (
     <div>
