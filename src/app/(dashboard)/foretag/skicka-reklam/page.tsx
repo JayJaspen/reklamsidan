@@ -161,7 +161,7 @@ export default function SkickaReklam() {
           await supabase.from('ad_target_counties_b2c').insert(
             targeting.counties.map(c => ({
               ad_id: adData.id,
-              county_id: SWEDISH_COUNTIES.indexOf(c) + 1,
+              county_id: (SWEDISH_COUNTIES as readonly string[]).indexOf(c) + 1,
             }))
           )
         }
@@ -182,7 +182,7 @@ export default function SkickaReklam() {
           await supabase.from('ad_target_counties_b2b').insert(
             targeting.counties.map(c => ({
               ad_id: adData.id,
-              county_id: SWEDISH_COUNTIES.indexOf(c) + 1,
+              county_id: (SWEDISH_COUNTIES as readonly string[]).indexOf(c) + 1,
             }))
           )
         }
