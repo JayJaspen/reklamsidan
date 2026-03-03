@@ -128,8 +128,8 @@ export default function RegisterB2BPage() {
           <select className="input-field" value={form.countyId}
             onChange={e => set('countyId', e.target.value)}>
             <option value="">Välj län...</option>
-            {SWEDISH_COUNTIES.map(c => (
-              <option key={c} value={c}>{c}</option>
+            {SWEDISH_COUNTIES.map((c, i) => (
+              <option key={c} value={String(i + 1)}>{c}</option>
             ))}
           </select>
         </div>

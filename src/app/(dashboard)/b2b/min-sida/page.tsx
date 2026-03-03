@@ -143,7 +143,7 @@ export default function B2BMinSida() {
             <select className="input-field" value={form.countyId}
               onChange={e => setForm(f => ({ ...f, countyId: e.target.value }))}>
               <option value="">Välj län</option>
-              {SWEDISH_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {SWEDISH_COUNTIES.map((c, i) => <option key={c} value={String(i + 1)}>{c}</option>)}
             </select>
           </div>
         </div>

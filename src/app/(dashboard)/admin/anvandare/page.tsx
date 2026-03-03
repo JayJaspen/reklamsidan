@@ -50,10 +50,21 @@ export default function AdminAnvandare() {
       query = query.eq('user_type', filter.userType)
     }
 
-    const { data, count, error } = await query
+    const { data, error } = await query
     if (!error && data) {
-      setResults(data as unknown as UserResult[])
-      setTotalCount(count ?? data.length)
+      const mapped: UserResult[] = (data as any[]).map(u => ({
+        id:           u.id,
+        user_type:    u.user_type,
+        first_name:   u.users_b2c?.first_name,
+        last_name:    u.users_b2c?.last_name,
+        birth_year:   u.users_b2c?.birth_year,
+        gender:       u.users_b2c?.gender,
+        county:       u.users_b2c?.counties?.name ?? u.users_b2b?.counties?.name,
+        company_name: u.users_b2b?.company_name,
+        org_number:   u.users_b2b?.org_number,
+      }))
+      setResults(mapped)
+      setTotalCount(mapped.length)
     }
     setLoading(false)
   }
