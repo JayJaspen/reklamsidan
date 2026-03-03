@@ -89,13 +89,18 @@ export default function AdminFakturering() {
       period_label: archiveLabel,
       data: data,
     })
-    // Markera läsningarna som fakturerade
-    const adIds = data.map(r => r.company_id)
-    if (adIds.length > 0) {
-      await supabase.from('ad_reads').update({ is_billed: true })
-        .in('ad_id',
-          supabase.from('ads').select('id').in('company_id', adIds) as unknown as string[]
-        )
+    // Markera läsningarna som fakturerade – hämta annons-IDs separat
+    const companyIds = data.map(r => r.company_id)
+    if (companyIds.length > 0) {
+      const { data: adRows } = await supabase
+        .from('ads')
+        .select('id')
+        .in('company_id', companyIds)
+      const adIds = (adRows ?? []).map(r => r.id)
+      if (adIds.length > 0) {
+        await supabase.from('ad_reads').update({ is_billed: true })
+          .in('ad_id', adIds)
+      }
     }
     setShowArchiveModal(false)
     setData([])
