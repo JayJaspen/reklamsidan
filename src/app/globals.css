@@ -12,25 +12,91 @@
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
   }
+  h1, h2, h3, h4 {
+    @apply tracking-tight;
+  }
 }
 
 @layer components {
+  /* ── Buttons ── */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5
+           text-sm font-semibold text-white shadow-sm
+           transition-all duration-150
+           hover:bg-primary-700 hover:shadow-md
+           active:scale-[0.98]
+           focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5
+           text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-inset ring-gray-300
+           transition-all duration-150
+           hover:bg-gray-50 hover:shadow
+           active:scale-[0.98]
+           focus:outline-none focus:ring-2 focus:ring-primary-500
+           disabled:opacity-50 disabled:cursor-not-allowed;
   }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5
+           text-sm font-semibold text-red-600
+           transition-all duration-150
+           hover:bg-red-50
+           active:scale-[0.98];
+  }
+
+  /* ── Inputs ── */
   .input-field {
-    @apply block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm shadow-sm placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:bg-gray-50 disabled:text-gray-500;
+    @apply block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5
+           text-sm shadow-sm placeholder:text-gray-400
+           transition-colors duration-150
+           focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20
+           disabled:bg-gray-50 disabled:text-gray-500;
   }
+
+  /* ── Cards ── */
   .card {
-    @apply rounded-xl bg-white shadow-sm ring-1 ring-gray-200;
+    @apply rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80;
   }
+  .card-hover {
+    @apply rounded-xl bg-white shadow-sm ring-1 ring-gray-200/80
+           transition-all duration-200
+           hover:shadow-md hover:-translate-y-0.5 cursor-pointer;
+  }
+
+  /* ── Tabs ── */
   .tab-active {
     @apply border-b-2 border-primary-600 text-primary-600 font-semibold;
   }
   .tab-inactive {
-    @apply border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300;
+    @apply border-b-2 border-transparent text-gray-500
+           hover:text-gray-700 hover:border-gray-300
+           transition-colors duration-150;
+  }
+
+  /* ── Badges ── */
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .badge-blue   { @apply badge bg-blue-50 text-blue-700; }
+  .badge-green  { @apply badge bg-green-50 text-green-700; }
+  .badge-yellow { @apply badge bg-yellow-50 text-yellow-700; }
+  .badge-red    { @apply badge bg-red-50 text-red-700; }
+  .badge-purple { @apply badge bg-purple-50 text-purple-700; }
+
+  /* ── Section header ── */
+  .page-header {
+    @apply mb-6 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between;
+  }
+  .page-title {
+    @apply text-2xl font-bold text-gray-900 flex items-center gap-2;
+  }
+  .page-subtitle {
+    @apply text-sm text-gray-500;
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    @apply flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 py-20 text-center px-4;
   }
 }

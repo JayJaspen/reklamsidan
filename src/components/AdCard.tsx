@@ -65,7 +65,7 @@ export default function AdCard({ ad, userId, tabSource, onDiscard }: Props) {
     <>
       <button
         onClick={handleOpen}
-        className="card flex items-start gap-4 p-4 text-left transition hover:shadow-md w-full"
+        className="card-hover flex items-start gap-4 p-4 text-left w-full"
       >
         {ad.company_logo ? (
           <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
