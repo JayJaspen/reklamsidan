@@ -82,7 +82,7 @@ export default function SkickaReklam() {
 
       if (targeting.counties.length > 0) {
         query = query.in('county_id', targeting.counties.map(c => {
-          const idx = SWEDISH_COUNTIES.indexOf(c)
+          const idx = (SWEDISH_COUNTIES as string[]).indexOf(c)
           return idx + 1
         }))
       }
