@@ -204,6 +204,29 @@ export default function SkickaReklam() {
     }
   }
 
+  function toggleCounty(county: string) {
+    setTargeting(t => ({
+      ...t,
+      counties: t.counties.includes(county)
+        ? t.counties.filter(c => c !== county)
+        : [...t.counties, county],
+    }))
+  }
+
+  function handleAllaTargets(checked: boolean) {
+    setTargeting(t => ({
+      ...t,
+      genders: checked ? GENDERS.map(g => g.value) : [],
+      ageGroups: checked ? [...AGE_GROUPS] : [],
+      counties: checked ? [...SWEDISH_COUNTIES] : [],
+    }))
+  }
+
+  const allTargetsSelected =
+    targeting.genders.length === GENDERS.length &&
+    targeting.ageGroups.length === AGE_GROUPS.length &&
+    targeting.counties.length === SWEDISH_COUNTIES.length
+
   const mainCats = categories.filter(c => c.parent_id === null)
   const subCats = (pid: number) => categories.filter(c => c.parent_id === pid)
 
@@ -313,6 +336,18 @@ export default function SkickaReklam() {
           {/* B2C targeting */}
           {targeting.type === 'b2c' && (
             <div className="space-y-4">
+              {/* Alla målgrupper */}
+              <label className="flex items-center gap-3 cursor-pointer rounded-lg border-2 border-primary-200 bg-primary-50 p-3">
+                <input
+                  type="checkbox"
+                  checked={allTargetsSelected}
+                  onChange={e => handleAllaTargets(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-primary-600"
+                />
+                <span className="text-sm font-semibold text-primary-700">Alla målgrupper</span>
+                <span className="text-xs text-primary-500">(markerar alla kön, åldrar &amp; län)</span>
+              </label>
+
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-600">Kön</label>
                 <div className="space-y-2">
@@ -359,21 +394,16 @@ export default function SkickaReklam() {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-600">Län</label>
-                <select
-                  multiple
-                  className="input-field"
-                  value={targeting.counties}
-                  onChange={e => setTargeting(t => ({
-                    ...t,
-                    counties: Array.from(e.target.selectedOptions, o => o.value),
-                  }))}
-                  size={5}
-                >
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-gray-200 p-3 max-h-48 overflow-y-auto">
                   {SWEDISH_COUNTIES.map(c => (
-                    <option key={c} value={c}>{c}</option>
+                    <label key={c} className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={targeting.counties.includes(c)}
+                        onChange={() => toggleCounty(c)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary-600" />
+                      <span className="text-sm text-gray-700">{c}</span>
+                    </label>
                   ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-400">Håll Ctrl/Cmd för att välja flera</p>
+                </div>
               </div>
 
               <div>
@@ -441,21 +471,16 @@ export default function SkickaReklam() {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-600">Län</label>
-                <select
-                  multiple
-                  className="input-field"
-                  value={targeting.counties}
-                  onChange={e => setTargeting(t => ({
-                    ...t,
-                    counties: Array.from(e.target.selectedOptions, o => o.value),
-                  }))}
-                  size={5}
-                >
+                <div className="grid grid-cols-2 gap-2 rounded-xl border border-gray-200 p-3 max-h-48 overflow-y-auto">
                   {SWEDISH_COUNTIES.map(c => (
-                    <option key={c} value={c}>{c}</option>
+                    <label key={c} className="flex items-center gap-2 cursor-pointer">
+                      <input type="checkbox" checked={targeting.counties.includes(c)}
+                        onChange={() => toggleCounty(c)}
+                        className="h-4 w-4 rounded border-gray-300 text-primary-600" />
+                      <span className="text-sm text-gray-700">{c}</span>
+                    </label>
                   ))}
-                </select>
-                <p className="mt-1 text-xs text-gray-400">Håll Ctrl/Cmd för att välja flera</p>
+                </div>
               </div>
             </div>
           )}

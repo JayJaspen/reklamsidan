@@ -59,14 +59,14 @@ export default function ForetagMinSida() {
           contactEmail: company.contact_email,
           contactPhone: company.contact_phone,
           website: company.website ?? '',
-          description: company.description ?? '',
+          description: company.company_description ?? '',
           counties: company.counties ?? [],
           categoriesB2C: (compCatsB2C ?? []).map(c => c.category_id),
           sendsB2B: company.sends_b2b,
           categoriesB2B: (compCatsB2B ?? []).map(c => c.category_id),
           billingMethod: company.billing_method ?? 'address',
           billingAddress: company.billing_address ?? '',
-          billingPostal: company.billing_postal ?? '',
+          billingPostal: company.billing_postal_code ?? '',
           billingCity: company.billing_city ?? '',
           billingEmail: company.billing_email ?? '',
         })
@@ -77,6 +77,15 @@ export default function ForetagMinSida() {
       setLoading(false)
     })
   }, [])
+
+  function toggleCounty(county: string) {
+    setForm(f => ({
+      ...f,
+      counties: f.counties.includes(county)
+        ? f.counties.filter(c => c !== county)
+        : [...f.counties, county],
+    }))
+  }
 
   function toggleCat(id: number, type: 'b2c' | 'b2b') {
     const key = type === 'b2c' ? 'categoriesB2C' : 'categoriesB2B'
@@ -96,14 +105,15 @@ export default function ForetagMinSida() {
     setSaving(true)
 
     try {
-      const fileName = `${userId}-logo-${Date.now()}`
+      const ext = file.name.split('.').pop()
+      const path = `logos/${userId}.${ext}`
       const { error: uploadError } = await supabase.storage
-        .from('logos')
-        .upload(fileName, file)
+        .from('company-assets')
+        .upload(path, file, { upsert: true })
 
       if (uploadError) throw uploadError
 
-      const { data } = supabase.storage.from('logos').getPublicUrl(fileName)
+      const { data } = supabase.storage.from('company-assets').getPublicUrl(path)
       setForm(f => ({ ...f, logoUrl: data.publicUrl }))
     } catch (error) {
       console.error('Error uploading logo:', error)
@@ -126,12 +136,12 @@ export default function ForetagMinSida() {
         contact_email: form.contactEmail,
         contact_phone: form.contactPhone,
         website: form.website,
-        description: form.description,
+        company_description: form.description,
         counties: form.counties,
         sends_b2b: form.sendsB2B,
         billing_method: form.billingMethod,
         billing_address: form.billingAddress,
-        billing_postal: form.billingPostal,
+        billing_postal_code: form.billingPostal,
         billing_city: form.billingCity,
         billing_email: form.billingEmail,
       }).eq('id', userId)
@@ -253,21 +263,16 @@ export default function ForetagMinSida() {
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-600">Län</label>
-            <select
-              multiple
-              className="input-field"
-              value={form.counties}
-              onChange={e => setForm(f => ({
-                ...f,
-                counties: Array.from(e.target.selectedOptions, o => o.value),
-              }))}
-              size={5}
-            >
+            <div className="grid grid-cols-2 gap-2 rounded-xl border border-gray-200 p-3 max-h-48 overflow-y-auto">
               {SWEDISH_COUNTIES.map(c => (
-                <option key={c} value={c}>{c}</option>
+                <label key={c} className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={form.counties.includes(c)}
+                    onChange={() => toggleCounty(c)}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600" />
+                  <span className="text-sm text-gray-600">{c}</span>
+                </label>
               ))}
-            </select>
-            <p className="mt-1 text-xs text-gray-400">Håll Ctrl/Cmd för att välja flera</p>
+            </div>
           </div>
         </div>
 
