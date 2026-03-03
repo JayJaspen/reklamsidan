@@ -1,130 +1,175 @@
 import Link from 'next/link'
-import { Megaphone, Building2, Users, Star, Filter, Globe } from 'lucide-react'
+import { Megaphone, Building2, Users, Star, Filter, Globe, ChevronRight, Check, TrendingUp, Target, Shield } from 'lucide-react'
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
+
+      {/* ── Header ── */}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="flex items-center gap-2">
-            <Megaphone className="h-7 w-7 text-primary-600" />
-            <span className="text-xl font-bold text-gray-900">Reklamsidan</span>
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600">
+              <Megaphone className="h-4 w-4 text-white" />
+            </div>
+            <span className="text-lg font-bold text-gray-900 tracking-tight">Reklamsidan</span>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="btn-secondary text-sm">
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="btn-secondary text-sm px-4 py-2">
               Logga in
             </Link>
-            <Link href="/register" className="btn-primary text-sm">
-              Registrera dig
+            <Link href="/register" className="btn-primary text-sm px-4 py-2">
+              Kom igång gratis
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-primary-900 via-primary-800 to-primary-700 px-4 py-24 text-white">
-        <div className="mx-auto max-w-4xl text-center">
-          <h1 className="mb-6 text-5xl font-extrabold leading-tight tracking-tight">
-            Digital reklam som når<br />
-            <span className="text-primary-300">rätt mottagare</span>
+      {/* ── Hero ── */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-primary-950 to-primary-800 px-4 pb-28 pt-24 text-white">
+        {/* Decorative blobs */}
+        <div className="pointer-events-none absolute -left-40 -top-40 h-96 w-96 rounded-full bg-primary-500/20 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 top-20 h-72 w-72 rounded-full bg-blue-400/10 blur-3xl" />
+
+        <div className="relative mx-auto max-w-4xl text-center">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-primary-200 backdrop-blur">
+            <TrendingUp className="h-3.5 w-3.5" />
+            Betala bara för läst reklam
+          </div>
+
+          <h1 className="mb-6 text-5xl font-extrabold leading-tight tracking-tight sm:text-6xl">
+            Digital reklam som når
+            <br />
+            <span className="bg-gradient-to-r from-blue-300 to-primary-300 bg-clip-text text-transparent">
+              rätt mottagare
+            </span>
           </h1>
-          <p className="mb-10 text-xl text-primary-100">
+
+          <p className="mx-auto mb-10 max-w-2xl text-lg text-primary-200 leading-relaxed">
             Skicka riktad reklam till privatpersoner och företag som faktiskt är intresserade.
-            Betala bara för läst reklam.
+            Välj målgrupp efter kön, ålder, region och intresse.
           </p>
-          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
               href="/register/foretag"
-              className="w-full rounded-xl bg-white px-8 py-4 text-center text-base font-bold text-primary-700 shadow-lg transition hover:bg-primary-50 sm:w-auto"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white px-8 py-4 font-bold text-primary-700 shadow-lg transition hover:bg-primary-50 sm:w-auto"
             >
+              <Building2 className="h-5 w-5" />
               Annonsera som företag
+              <ChevronRight className="h-4 w-4" />
             </Link>
             <Link
               href="/register/b2c"
-              className="w-full rounded-xl border-2 border-white/30 bg-white/10 px-8 py-4 text-center text-base font-bold text-white backdrop-blur transition hover:bg-white/20 sm:w-auto"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-white/25 bg-white/10 px-8 py-4 font-bold text-white backdrop-blur transition hover:bg-white/20 sm:w-auto"
             >
-              Registrera dig som privatperson
+              <Users className="h-5 w-5" />
+              Registrera som privatperson
             </Link>
           </div>
-        </div>
-      </section>
 
-      {/* How it works */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="mb-4 text-center text-3xl font-bold text-gray-900">
-            Hur fungerar det?
-          </h2>
-          <p className="mb-14 text-center text-gray-500">
-            Tre enkla roller – ett smart system
-          </p>
-          <div className="grid gap-8 md:grid-cols-3">
-            {/* Card 1 */}
-            <div className="card p-8">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50">
-                <Building2 className="h-6 w-6 text-primary-600" />
+          {/* Stats */}
+          <div className="mt-14 grid grid-cols-3 gap-6 border-t border-white/15 pt-10">
+            {[
+              { value: '3 kr', label: 'Per läsning B2C' },
+              { value: '5 kr', label: 'Per läsning B2B' },
+              { value: '100%', label: 'Riktad reklam' },
+            ].map(({ value, label }) => (
+              <div key={label} className="text-center">
+                <div className="text-3xl font-extrabold text-white">{value}</div>
+                <div className="mt-1 text-sm text-primary-300">{label}</div>
               </div>
-              <h3 className="mb-3 text-xl font-bold">Annonsörföretag</h3>
-              <p className="mb-4 text-gray-500 leading-relaxed">
-                Ladda upp dina reklamblad och välj exakt vem som ska se dem – kön, ålder,
-                län och intressekategori. Du betalar bara när någon faktiskt läser din reklam.
-              </p>
-              <Link href="/register/foretag" className="text-sm font-semibold text-primary-600 hover:text-primary-700">
-                Registrera företag →
-              </Link>
-            </div>
-            {/* Card 2 */}
-            <div className="card p-8">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-green-50">
-                <Users className="h-6 w-6 text-green-600" />
-              </div>
-              <h3 className="mb-3 text-xl font-bold">Privatpersoner (B2C)</h3>
-              <p className="mb-4 text-gray-500 leading-relaxed">
-                Följ dina favoritföretag och se reklam baserat på dina intressen.
-                Allt på ett ställe – inga spam-mail.
-              </p>
-              <Link href="/register/b2c" className="text-sm font-semibold text-primary-600 hover:text-primary-700">
-                Registrera dig →
-              </Link>
-            </div>
-            {/* Card 3 */}
-            <div className="card p-8">
-              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-purple-50">
-                <Building2 className="h-6 w-6 text-purple-600" />
-              </div>
-              <h3 className="mb-3 text-xl font-bold">Mottagarföretag (B2B)</h3>
-              <p className="mb-4 text-gray-500 leading-relaxed">
-                Ta emot relevant B2B-reklam från leverantörer och partners i din bransch.
-                Filtrera efter kategori och region.
-              </p>
-              <Link href="/register/b2b" className="text-sm font-semibold text-primary-600 hover:text-primary-700">
-                Registrera företag →
-              </Link>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Feature highlights */}
-      <section className="bg-gray-50 px-4 py-20">
+      {/* ── How it works ── */}
+      <section className="px-4 py-24">
         <div className="mx-auto max-w-6xl">
-          <h2 className="mb-14 text-center text-3xl font-bold text-gray-900">
-            Smarta funktioner för alla
-          </h2>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mb-16 text-center">
+            <h2 className="mb-3 text-3xl font-bold text-gray-900">Hur fungerar det?</h2>
+            <p className="text-gray-500">Tre roller – ett smart ekosystem för riktad reklam</p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-3">
             {[
-              { icon: Star,   color: 'text-yellow-500 bg-yellow-50', title: 'Favoriter',       desc: 'Följ dina favoritföretag och se deras senaste erbjudanden direkt.' },
-              { icon: Filter, color: 'text-blue-500 bg-blue-50',    title: 'Intressereklam',   desc: 'Välj kategorier du bryr dig om – se bara relevant reklam.' },
-              { icon: Globe,  color: 'text-green-500 bg-green-50',  title: 'All reklam',       desc: 'Sök efter specifika företag eller branscher i hela Sverige.' },
-            ].map(({ icon: Icon, color, title, desc }) => (
+              {
+                icon: Building2,
+                iconBg: 'bg-primary-50',
+                iconColor: 'text-primary-600',
+                badge: 'Annonsör',
+                badgeBg: 'bg-primary-100 text-primary-700',
+                title: 'Skicka reklam',
+                desc: 'Ladda upp reklamblad och välj exakt vem som ska se dem – kön, ålder, region och kategori. Betala bara per faktisk läsning.',
+                href: '/register/foretag',
+                cta: 'Registrera företag',
+              },
+              {
+                icon: Users,
+                iconBg: 'bg-green-50',
+                iconColor: 'text-green-600',
+                badge: 'B2C',
+                badgeBg: 'bg-green-100 text-green-700',
+                title: 'Privatpersoner',
+                desc: 'Följ favoritföretag och se reklam baserat på dina intressen. Allt samlat på ett ställe – inga spam-mail.',
+                href: '/register/b2c',
+                cta: 'Registrera dig',
+              },
+              {
+                icon: Building2,
+                iconBg: 'bg-purple-50',
+                iconColor: 'text-purple-600',
+                badge: 'B2B',
+                badgeBg: 'bg-purple-100 text-purple-700',
+                title: 'Mottagarföretag',
+                desc: 'Ta emot relevant B2B-reklam från leverantörer och partners i din bransch. Filtrera efter kategori och region.',
+                href: '/register/b2b',
+                cta: 'Registrera företag',
+              },
+            ].map(({ icon: Icon, iconBg, iconColor, badge, badgeBg, title, desc, href, cta }) => (
+              <div key={title} className="card flex flex-col p-8">
+                <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-xl ${iconBg}`}>
+                  <Icon className={`h-6 w-6 ${iconColor}`} />
+                </div>
+                <span className={`mb-3 self-start rounded-full px-2.5 py-0.5 text-xs font-semibold ${badgeBg}`}>
+                  {badge}
+                </span>
+                <h3 className="mb-2 text-xl font-bold text-gray-900">{title}</h3>
+                <p className="mb-6 flex-1 text-gray-500 leading-relaxed">{desc}</p>
+                <Link href={href} className="inline-flex items-center gap-1 text-sm font-semibold text-primary-600 hover:text-primary-700">
+                  {cta} <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Features ── */}
+      <section className="bg-gray-50 px-4 py-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-16 text-center">
+            <h2 className="mb-3 text-3xl font-bold text-gray-900">Smarta funktioner</h2>
+            <p className="text-gray-500">Allt du behöver för riktad digital reklam</p>
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { icon: Star,    bg: 'bg-yellow-50', color: 'text-yellow-500', title: 'Favoriter',       desc: 'Följ dina favoritföretag och se deras senaste erbjudanden direkt i en egen flik.' },
+              { icon: Target,  bg: 'bg-blue-50',   color: 'text-blue-500',   title: 'Intressereklam',  desc: 'Välj kategorier du bryr dig om och se bara relevant reklam – automatiskt filtrerat.' },
+              { icon: Globe,   bg: 'bg-green-50',  color: 'text-green-500',  title: 'All reklam',      desc: 'Sök och bläddra bland alla aktiva annonsörer i hela Sverige.' },
+              { icon: Filter,  bg: 'bg-purple-50', color: 'text-purple-500', title: 'Precis målgrupp', desc: 'Som annonsör väljer du exakt vem som ser din reklam – inga pengar slösas.' },
+              { icon: Shield,  bg: 'bg-red-50',    color: 'text-red-500',    title: 'Ingen spam',      desc: 'Mottagarna väljer själva vad de vill se. Reklam de faktiskt läser.' },
+              { icon: TrendingUp, bg: 'bg-orange-50', color: 'text-orange-500', title: 'Betala per läsning', desc: 'Som annonsör betalar du bara när din reklam faktiskt öppnas och läses.' },
+            ].map(({ icon: Icon, bg, color, title, desc }) => (
               <div key={title} className="flex gap-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
-                <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${color}`}>
-                  <Icon className="h-5 w-5" />
+                <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${bg}`}>
+                  <Icon className={`h-5 w-5 ${color}`} />
                 </div>
                 <div>
                   <h3 className="mb-1 font-semibold text-gray-900">{title}</h3>
-                  <p className="text-sm text-gray-500">{desc}</p>
+                  <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
                 </div>
               </div>
             ))}
@@ -132,23 +177,91 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="bg-primary-600 px-4 py-16 text-center text-white">
-        <h2 className="mb-4 text-3xl font-bold">Redo att komma igång?</h2>
-        <p className="mb-8 text-primary-100">Det tar under 5 minuter att registrera sig.</p>
-        <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-          <Link href="/register" className="rounded-xl bg-white px-8 py-3 font-bold text-primary-700 hover:bg-primary-50">
-            Skapa konto
-          </Link>
-          <Link href="/login" className="rounded-xl border-2 border-white/40 px-8 py-3 font-bold text-white hover:bg-white/10">
-            Logga in
-          </Link>
+      {/* ── Pricing ── */}
+      <section className="px-4 py-24">
+        <div className="mx-auto max-w-4xl">
+          <div className="mb-16 text-center">
+            <h2 className="mb-3 text-3xl font-bold text-gray-900">Transparent prissättning</h2>
+            <p className="text-gray-500">Inga dolda kostnader – du betalar bara för resultat</p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {[
+              {
+                title: 'B2C-reklam',
+                subtitle: 'Reklam till privatpersoner',
+                color: 'border-green-200 bg-green-50',
+                items: [
+                  { label: 'Favorit- och intressereklam', price: '3 kr/läsning' },
+                  { label: 'Generell reklam', price: '1 kr/läsning' },
+                ],
+              },
+              {
+                title: 'B2B-reklam',
+                subtitle: 'Reklam till företag',
+                color: 'border-purple-200 bg-purple-50',
+                items: [
+                  { label: 'Favorit- och intressereklam', price: '5 kr/läsning' },
+                  { label: 'Generell reklam', price: '3 kr/läsning' },
+                ],
+              },
+            ].map(({ title, subtitle, color, items }) => (
+              <div key={title} className={`rounded-2xl border-2 p-8 ${color}`}>
+                <h3 className="mb-1 text-xl font-bold text-gray-900">{title}</h3>
+                <p className="mb-6 text-sm text-gray-500">{subtitle}</p>
+                <div className="space-y-3">
+                  {items.map(({ label, price }) => (
+                    <div key={label} className="flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-sm">
+                      <div className="flex items-center gap-2 text-sm text-gray-700">
+                        <Check className="h-4 w-4 text-green-500" />
+                        {label}
+                      </div>
+                      <span className="font-bold text-gray-900">{price}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-4 text-xs text-gray-400">* Max en debitering per användare och annons</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-gray-100 bg-white px-4 py-8 text-center text-sm text-gray-400">
-        © {new Date().getFullYear()} Reklamsidan. Alla rättigheter förbehållna.
+      {/* ── CTA ── */}
+      <section className="bg-primary-600 px-4 py-20 text-white">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="mb-4 text-3xl font-bold">Redo att komma igång?</h2>
+          <p className="mb-10 text-lg text-primary-100">
+            Det tar under 5 minuter att registrera sig. Ingen bindningstid.
+          </p>
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+            <Link href="/register/foretag"
+              className="flex items-center gap-2 rounded-xl bg-white px-8 py-4 font-bold text-primary-700 shadow-lg transition hover:bg-primary-50">
+              <Building2 className="h-5 w-5" /> Annonsera nu
+            </Link>
+            <Link href="/register"
+              className="flex items-center gap-2 rounded-xl border-2 border-white/30 px-8 py-4 font-bold text-white transition hover:bg-white/10">
+              <Users className="h-5 w-5" /> Skapa konto
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="border-t border-gray-100 bg-white px-4 py-10">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
+          <div className="flex items-center gap-2">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-600">
+              <Megaphone className="h-3.5 w-3.5 text-white" />
+            </div>
+            <span className="font-bold text-gray-900">Reklamsidan</span>
+          </div>
+          <p className="text-sm text-gray-400">© {new Date().getFullYear()} Reklamsidan. Alla rättigheter förbehållna.</p>
+          <div className="flex gap-4 text-sm text-gray-500">
+            <Link href="/login" className="hover:text-gray-700">Logga in</Link>
+            <Link href="/register" className="hover:text-gray-700">Registrera</Link>
+          </div>
+        </div>
       </footer>
     </div>
   )

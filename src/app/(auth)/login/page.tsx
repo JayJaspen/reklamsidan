@@ -50,69 +50,58 @@ function LoginForm() {
   }
 
   return (
-    <div className="p-8">
-      <h1 className="mb-2 text-2xl font-bold text-gray-900">Välkommen tillbaka</h1>
-      <p className="mb-6 text-sm text-gray-500">Logga in på ditt konto</p>
+    <div className="p-8 sm:p-10">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Välkommen tillbaka</h1>
+        <p className="mt-1 text-sm text-gray-500">Logga in på ditt konto för att fortsätta</p>
+      </div>
 
       {searchParams.get('error') && (
-        <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div className="mb-5 flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-200">
           Något gick fel. Försök igen.
         </div>
       )}
 
       <form onSubmit={handleLogin} className="space-y-5">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            E-postadress
-          </label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">E-postadress</label>
           <input
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="input-field"
-            placeholder="din@epost.se"
+            type="email" required autoComplete="email"
+            value={email} onChange={e => setEmail(e.target.value)}
+            className="input-field" placeholder="din@epost.se"
           />
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Lösenord
-          </label>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">Lösenord</label>
           <div className="relative">
             <input
-              type={showPw ? 'text' : 'password'}
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="input-field pr-10"
-              placeholder="••••••••"
+              type={showPw ? 'text' : 'password'} required autoComplete="current-password"
+              value={password} onChange={e => setPassword(e.target.value)}
+              className="input-field pr-10" placeholder="••••••••"
             />
-            <button
-              type="button"
-              onClick={() => setShowPw(!showPw)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
+            <button type="button" onClick={() => setShowPw(!showPw)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </div>
 
         {error && (
-          <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+          <div className="flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600 ring-1 ring-red-200">
+            {error}
+          </div>
         )}
 
-        <button type="submit" disabled={loading} className="btn-primary w-full py-3">
+        <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-base">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           {loading ? 'Loggar in...' : 'Logga in'}
         </button>
       </form>
 
-      <div className="mt-6 border-t border-gray-100 pt-6 text-center text-sm text-gray-500">
+      <div className="mt-8 border-t border-gray-100 pt-6 text-center text-sm text-gray-500">
         Har du inget konto?{' '}
-        <Link href="/register" className="font-semibold text-primary-600 hover:text-primary-700">
+        <Link href="/register" className="font-semibold text-primary-600 hover:text-primary-700 transition-colors">
           Registrera dig här
         </Link>
       </div>
