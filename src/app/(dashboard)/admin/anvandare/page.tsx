@@ -59,8 +59,8 @@ export default function AdminAnvandare() {
         last_name:    u.users_b2c?.last_name,
         birth_year:   u.users_b2c?.birth_year,
         gender:       u.users_b2c?.gender,
-        county:       (u.users_b2c?.county_id ? SWEDISH_COUNTIES[u.users_b2c.county_id - 1] : null)
-                      ?? (u.users_b2b?.county_id ? SWEDISH_COUNTIES[u.users_b2b.county_id - 1] : null),
+        county:       (u.users_b2c?.county_id ? SWEDISH_COUNTIES[u.users_b2c.county_id - 1] : undefined)
+                      ?? (u.users_b2b?.county_id ? SWEDISH_COUNTIES[u.users_b2b.county_id - 1] : undefined) as string | undefined,
         company_name: u.users_b2b?.company_name,
         org_number:   u.users_b2b?.org_number,
       }))
