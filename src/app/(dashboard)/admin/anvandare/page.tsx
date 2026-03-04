@@ -22,6 +22,7 @@ export default function AdminAnvandare() {
 
   const [filter, setFilter] = useState({
     userType:    'all',
+    gender:      '',
     ageGroup:    '',
     county:      '',
     categoriesB2c: [] as number[],
@@ -52,7 +53,11 @@ export default function AdminAnvandare() {
 
     const { data, error } = await query
     if (!error && data) {
-      const mapped: UserResult[] = (data as any[]).map(u => ({
+      let rows = data as any[]
+      if (filter.gender) {
+        rows = rows.filter(u => u.users_b2c?.gender === filter.gender)
+      }
+      const mapped: UserResult[] = rows.map(u => ({
         id:           u.id,
         user_type:    u.user_type,
         first_name:   u.users_b2c?.first_name,
@@ -92,6 +97,17 @@ export default function AdminAnvandare() {
       <div className="card mb-6 p-6">
         <h2 className="mb-4 text-sm font-semibold text-gray-700 uppercase tracking-wide">Filtrering</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-600">Kön</label>
+            <select className="input-field" value={filter.gender ?? ''}
+              onChange={e => setFilter(f => ({ ...f, gender: e.target.value }))}>
+              <option value="">Alla kön</option>
+              <option value="man">Man</option>
+              <option value="kvinna">Kvinna</option>
+              <option value="annat">Annat</option>
+            </select>
+          </div>
+
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-600">Typ av användare</label>
             <select className="input-field" value={filter.userType}

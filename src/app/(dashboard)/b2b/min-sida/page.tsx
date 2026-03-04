@@ -11,6 +11,10 @@ export default function B2BMinSida() {
   const [saving, setSaving]   = useState(false)
   const [saved, setSaved]     = useState(false)
   const [userId, setUserId]   = useState<string | null>(null)
+
+  const [pwForm, setPwForm]   = useState({ newPw: '', confirmPw: '' })
+  const [pwSaving, setPwSaving] = useState(false)
+  const [pwMsg, setPwMsg]     = useState<{ ok: boolean; text: string } | null>(null)
   const [categories, setCategories] = useState<{ id: number; name: string; parent_id: number | null }[]>([])
 
   const [form, setForm] = useState({
@@ -83,6 +87,33 @@ export default function B2BMinSida() {
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
+  }
+
+  async function handlePasswordChange(e: React.FormEvent) {
+    e.preventDefault()
+    if (!pwForm.newPw || !pwForm.confirmPw) {
+      setPwMsg({ ok: false, text: 'Fyll i båda fälten.' })
+      return
+    }
+    if (pwForm.newPw !== pwForm.confirmPw) {
+      setPwMsg({ ok: false, text: 'Lösenorden matchar inte.' })
+      return
+    }
+    if (pwForm.newPw.length < 6) {
+      setPwMsg({ ok: false, text: 'Lösenordet måste vara minst 6 tecken.' })
+      return
+    }
+    setPwSaving(true)
+    setPwMsg(null)
+    const { error } = await supabase.auth.updateUser({ password: pwForm.newPw })
+    setPwSaving(false)
+    if (error) {
+      setPwMsg({ ok: false, text: `Fel: ${error.message}` })
+    } else {
+      setPwMsg({ ok: true, text: 'Lösenordet har ändrats!' })
+      setPwForm({ newPw: '', confirmPw: '' })
+      setTimeout(() => setPwMsg(null), 4000)
+    }
   }
 
   const mainCats = categories.filter(c => c.parent_id === null)
@@ -176,6 +207,42 @@ export default function B2BMinSida() {
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           {saving ? 'Sparar...' : 'Spara ändringar'}
         </button>
+      </form>
+
+      {/* Lösenordsbyte – separat formulär */}
+      <form onSubmit={handlePasswordChange} className="mt-6">
+        <div className="card p-6 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Byt lösenord</h2>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-600">Nytt lösenord</label>
+            <input
+              type="password"
+              className="input-field"
+              placeholder="Minst 6 tecken"
+              value={pwForm.newPw}
+              onChange={e => setPwForm(f => ({ ...f, newPw: e.target.value }))}
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-600">Bekräfta nytt lösenord</label>
+            <input
+              type="password"
+              className="input-field"
+              placeholder="Upprepa lösenordet"
+              value={pwForm.confirmPw}
+              onChange={e => setPwForm(f => ({ ...f, confirmPw: e.target.value }))}
+            />
+          </div>
+          {pwMsg && (
+            <p className={`text-sm font-medium ${pwMsg.ok ? 'text-green-600' : 'text-red-600'}`}>
+              {pwMsg.text}
+            </p>
+          )}
+          <button type="submit" disabled={pwSaving} className="btn-primary w-full py-3">
+            {pwSaving ? <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" /> : null}
+            {pwSaving ? 'Sparar...' : 'Byt lösenord'}
+          </button>
+        </div>
       </form>
     </div>
   )

@@ -175,26 +175,26 @@ export default function RegisterB2CPage() {
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Gatuadress</label>
-              <input type="text" className="input-field" value={form.street}
+              <input type="text" required className="input-field" value={form.street}
                 onChange={e => set('street', e.target.value)} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Postnummer</label>
-                <input type="text" className="input-field" value={form.postalCode}
+                <input type="text" required className="input-field" value={form.postalCode}
                   onChange={e => set('postalCode', e.target.value)} placeholder="123 45" />
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Ort</label>
-                <input type="text" className="input-field" value={form.city}
+                <input type="text" required className="input-field" value={form.city}
                   onChange={e => set('city', e.target.value)} />
               </div>
             </div>
 
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Län</label>
-              <select className="input-field" value={form.countyId}
+              <select required className="input-field" value={form.countyId}
                 onChange={e => set('countyId', e.target.value)}>
                 <option value="">Välj län...</option>
                 {SWEDISH_COUNTIES.map((c, i) => (
@@ -215,7 +215,24 @@ export default function RegisterB2CPage() {
                 value={form.confirmPw} onChange={e => set('confirmPw', e.target.value)} />
             </div>
 
-            <button type="button" onClick={() => setStep(2)} className="btn-primary w-full py-3">
+            {error && (
+              <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                if (!form.firstName || !form.lastName || !form.email || !form.birthYear ||
+                    !form.gender || !form.street || !form.postalCode || !form.city ||
+                    !form.countyId || !form.password || !form.confirmPw) {
+                  setError('Alla fält är obligatoriska.')
+                  return
+                }
+                setError(null)
+                setStep(2)
+              }}
+              className="btn-primary w-full py-3"
+            >
               Nästa steg – välj intressen →
             </button>
           </div>

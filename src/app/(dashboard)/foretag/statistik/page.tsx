@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BarChart3, Download, Users, TrendingUp, Check } from 'lucide-react'
+import { SWEDISH_COUNTIES } from '@/lib/utils'
 
 type Ad = {
   id: string
@@ -41,6 +42,9 @@ export default function Statistics() {
   const [genderDist, setGenderDist] = useState<GenderDist>({ man: 0, kvinna: 0, annat: 0 })
   const [ageDist, setAgeDist] = useState<AgeDist>({})
   const [countyDist, setCountyDist] = useState<CountyDist>({})
+  const [countyDistB2C, setCountyDistB2C] = useState<CountyDist>({})
+  const [countyDistB2B, setCountyDistB2B] = useState<CountyDist>({})
+  const [b2bFollowerCompanies, setB2bFollowerCompanies] = useState<string[]>([])
   const [adReaders, setAdReaders] = useState<Array<{ user_id: string; read_at: string }>>([])
   const [loading, setLoading] = useState(true)
   const [adLoading, setAdLoading] = useState(false)
@@ -97,22 +101,28 @@ export default function Statistics() {
         b2b: uniqueB2BFollowers.size,
       })
 
-      // Fetch gender distribution for B2C followers
+      // Fetch gender + county distribution for B2C followers
       if (uniqueB2CFollowers.size > 0) {
         const { data: genderData } = await supabase
           .from('users_b2c')
-          .select('gender')
+          .select('gender, county_id')
           .in('id', Array.from(uniqueB2CFollowers))
 
         const dist: GenderDist = { man: 0, kvinna: 0, annat: 0 }
+        const cDist: CountyDist = {}
         if (genderData) {
           genderData.forEach(u => {
             if (u.gender === 'man') dist.man++
             else if (u.gender === 'kvinna') dist.kvinna++
             else dist.annat++
+            if (u.county_id) {
+              const name = SWEDISH_COUNTIES[u.county_id - 1] as string ?? 'Okänt'
+              cDist[name] = (cDist[name] ?? 0) + 1
+            }
           })
         }
         setGenderDist(dist)
+        setCountyDistB2C(cDist)
 
         // Fetch age distribution for B2C followers
         const { data: ageData } = await supabase
@@ -144,6 +154,26 @@ export default function Statistics() {
           })
         }
         setAgeDist(ageBuckets)
+      }
+
+      // Fetch B2B follower company names + county distribution
+      if (uniqueB2BFollowers.size > 0) {
+        const { data: b2bData } = await supabase
+          .from('users_b2b')
+          .select('company_name, county_id')
+          .in('id', Array.from(uniqueB2BFollowers))
+
+        if (b2bData) {
+          setB2bFollowerCompanies(b2bData.map(u => u.company_name).filter(Boolean))
+          const b2bCDist: CountyDist = {}
+          b2bData.forEach(u => {
+            if (u.county_id) {
+              const name = SWEDISH_COUNTIES[u.county_id - 1] as string ?? 'Okänt'
+              b2bCDist[name] = (b2bCDist[name] ?? 0) + 1
+            }
+          })
+          setCountyDistB2B(b2bCDist)
+        }
       }
 
       setLoading(false)
@@ -293,6 +323,79 @@ export default function Statistics() {
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* B2B follower companies */}
+      {b2bFollowerCompanies.length > 0 && (
+        <div className="card p-6">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">
+            B2B-följare ({b2bFollowerCompanies.length} företag)
+          </h2>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {b2bFollowerCompanies.sort().map((name, i) => (
+              <div key={i} className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                <span className="h-2 w-2 flex-shrink-0 rounded-full bg-green-400" />
+                <span className="text-sm font-medium text-gray-700">{name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* County distribution B2C */}
+      {Object.keys(countyDistB2C).length > 0 && (
+        <div className="card p-6">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Länsfördelning (B2C)</h2>
+          <div className="space-y-2">
+            {Object.entries(countyDistB2C)
+              .sort((a, b) => b[1] - a[1])
+              .map(([county, count]) => {
+                const percent = followers.b2c > 0 ? Math.round((count / followers.b2c) * 100) : 0
+                return (
+                  <div key={county} className="flex items-center gap-4">
+                    <p className="w-40 truncate text-sm text-gray-600">{county}</p>
+                    <div className="flex-1 h-6 bg-gray-100 rounded overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-blue-300 to-blue-500 flex items-center justify-end pr-2"
+                        style={{ width: `${Math.max(percent * 3, 4)}%` }}
+                      >
+                        {percent > 5 && <span className="text-xs font-bold text-white">{count}</span>}
+                      </div>
+                    </div>
+                    <p className="w-10 text-right text-sm text-gray-600">{percent}%</p>
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* County distribution B2B */}
+      {Object.keys(countyDistB2B).length > 0 && (
+        <div className="card p-6">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Länsfördelning (B2B)</h2>
+          <div className="space-y-2">
+            {Object.entries(countyDistB2B)
+              .sort((a, b) => b[1] - a[1])
+              .map(([county, count]) => {
+                const percent = followers.b2b > 0 ? Math.round((count / followers.b2b) * 100) : 0
+                return (
+                  <div key={county} className="flex items-center gap-4">
+                    <p className="w-40 truncate text-sm text-gray-600">{county}</p>
+                    <div className="flex-1 h-6 bg-gray-100 rounded overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-green-300 to-green-500 flex items-center justify-end pr-2"
+                        style={{ width: `${Math.max(percent * 3, 4)}%` }}
+                      >
+                        {percent > 5 && <span className="text-xs font-bold text-white">{count}</span>}
+                      </div>
+                    </div>
+                    <p className="w-10 text-right text-sm text-gray-600">{percent}%</p>
+                  </div>
+                )
+              })}
           </div>
         </div>
       )}

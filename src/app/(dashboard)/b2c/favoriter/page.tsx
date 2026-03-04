@@ -11,6 +11,7 @@ type Company = {
   logo_url: string | null
   company_description: string | null
   website: string | null
+  counties: string[] | null
   categories: string[]
 }
 
@@ -56,7 +57,7 @@ export default function B2CFavoriter() {
     const ids = data.map(f => f.company_id)
     const { data: companies } = await supabase
       .from('companies')
-      .select('id, public_name, logo_url, company_description, website')
+      .select('id, public_name, logo_url, company_description, website, counties')
       .in('id', ids)
       .eq('is_active', true)
       .order('public_name')
@@ -89,7 +90,11 @@ export default function B2CFavoriter() {
   }
 
   async function handleSearch() {
-    if (!searchName && !searchCategory && !searchCounty) return
+    if (!searchName && !searchCategory && !searchCounty) {
+      setHasSearched(true)
+      setSearchResults([])
+      return
+    }
     setSearching(true)
     setHasSearched(true)
 
@@ -112,7 +117,7 @@ export default function B2CFavoriter() {
 
     let q = supabase
       .from('companies')
-      .select('id, public_name, logo_url, company_description, website')
+      .select('id, public_name, logo_url, company_description, website, counties')
       .eq('is_active', true)
       .order('public_name')
 
@@ -127,7 +132,18 @@ export default function B2CFavoriter() {
       return
     }
 
-    const ids = companies.map(c => c.id)
+    // Filtrera på län (client-side)
+    const filtered = searchCounty
+      ? companies.filter(c => (c.counties ?? []).includes(searchCounty))
+      : companies
+
+    if (filtered.length === 0) {
+      setSearchResults([])
+      setSearching(false)
+      return
+    }
+
+    const ids = filtered.map(c => c.id)
     const { data: catLinks } = await supabase
       .from('company_categories_b2c')
       .select('company_id, categories_b2c(name)')
@@ -139,7 +155,7 @@ export default function B2CFavoriter() {
       if (row.categories_b2c?.name) catMap[row.company_id].push(row.categories_b2c.name)
     })
 
-    setSearchResults(companies.map(c => ({ ...c, categories: catMap[c.id] ?? [] })))
+    setSearchResults(filtered.map(c => ({ ...c, categories: catMap[c.id] ?? [] })))
     setSearching(false)
   }
 
@@ -202,7 +218,7 @@ export default function B2CFavoriter() {
         </div>
 
         <div className="card p-5 mb-4">
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-gray-500">Företagsnamn</label>
               <input
@@ -221,6 +237,16 @@ export default function B2CFavoriter() {
                 <option value="">Alla kategorier</option>
                 {allCategories.map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-500">Län</label>
+              <select className="input-field" value={searchCounty}
+                onChange={e => setSearchCounty(e.target.value)}>
+                <option value="">Alla län</option>
+                {SWEDISH_COUNTIES.map(c => (
+                  <option key={c} value={c}>{c}</option>
                 ))}
               </select>
             </div>

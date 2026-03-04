@@ -3,11 +3,12 @@ import { redirect } from 'next/navigation'
 import DashboardNav from '@/components/DashboardNav'
 
 const B2C_TABS = [
-  { href: '/b2c/favoriter',   label: '⭐ Favoriter' },
-  { href: '/b2c/intresse',    label: '🎯 Intressereklam' },
-  { href: '/b2c/all-reklam',  label: '🔍 All reklam' },
-  { href: '/b2c/min-sida',    label: '👤 Min sida' },
-  { href: '/b2c/sparad',      label: '📁 Sparad reklam' },
+  { href: '/b2c/favoritreklam', label: '⭐ Favoritreklam' },
+  { href: '/b2c/intresse',      label: '🎯 Intressereklam' },
+  { href: '/b2c/all-reklam',    label: '🔍 All reklam' },
+  { href: '/b2c/sparad',        label: '📁 Sparad reklam' },
+  { href: '/b2c/favoriter',     label: '🏢 Favoriter' },
+  { href: '/b2c/min-sida',      label: '👤 Min sida' },
 ]
 
 export default async function B2CLayout({ children }: { children: React.ReactNode }) {
