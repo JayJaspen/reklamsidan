@@ -170,7 +170,7 @@ export default function B2CFavoriter() {
       // Hämta company-info och lägg till i favorites
       const { data } = await supabase
         .from('companies')
-        .select('id, public_name, logo_url, company_description, website')
+        .select('id, public_name, logo_url, company_description, website, counties')
         .eq('id', companyId).single()
       if (data) setFavorites(f => [...f, { ...data, categories: [] }])
     }
