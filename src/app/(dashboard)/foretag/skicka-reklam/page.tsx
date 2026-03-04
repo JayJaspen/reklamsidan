@@ -92,19 +92,44 @@ export default function SkickaReklam() {
       const { count } = await query
       setAudienceCount(count ?? 0)
     } else {
-      // For B2B: categories
+      // For B2B: categories and/or counties
       if (targeting.categories.length === 0) {
-        setAudienceCount(0)
+        // No category filter – count all B2B users (optionally filtered by county)
+        let query = supabase.from('users_b2b').select('id', { count: 'exact', head: true })
+        if (targeting.counties.length > 0) {
+          query = query.in('county_id', targeting.counties.map(c => {
+            const idx = (SWEDISH_COUNTIES as readonly string[]).indexOf(c)
+            return idx + 1
+          }))
+        }
+        const { count } = await query
+        setAudienceCount(count ?? 0)
         return
       }
 
+      // Categories selected – find matching users via users_b2b_categories
       const { data: users } = await supabase
         .from('users_b2b_categories')
         .select('user_id')
         .in('category_id', targeting.categories)
 
-      const uniqueUsers = new Set(users?.map(u => u.user_id) ?? [])
-      setAudienceCount(uniqueUsers.size)
+      let uniqueUserIds = [...new Set(users?.map(u => u.user_id) ?? [])]
+
+      // Apply county filter if needed
+      if (targeting.counties.length > 0 && uniqueUserIds.length > 0) {
+        const countyIds = targeting.counties.map(c => {
+          const idx = (SWEDISH_COUNTIES as readonly string[]).indexOf(c)
+          return idx + 1
+        })
+        const { data: countyUsers } = await supabase
+          .from('users_b2b')
+          .select('id')
+          .in('id', uniqueUserIds)
+          .in('county_id', countyIds)
+        uniqueUserIds = (countyUsers ?? []).map(u => u.id)
+      }
+
+      setAudienceCount(uniqueUserIds.length)
     }
   }
 

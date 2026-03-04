@@ -377,6 +377,7 @@ export default function RegisterForetagPage() {
                 <div>
                   <p className="font-semibold text-gray-800">Fysisk adress</p>
                   <p className="text-sm text-gray-500">Vi skickar fakturan per post</p>
+                  <p className="mt-1 text-xs text-amber-600 font-medium">⚠ OBS: Det tillkommer en administrativ avgift på 39 kr ex. moms vid postalisk faktura.</p>
                 </div>
               </label>
 

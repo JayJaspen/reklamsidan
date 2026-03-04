@@ -73,7 +73,12 @@ function LoginForm() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Lösenord</label>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">Lösenord</label>
+            <Link href="/glomt-losenord" className="text-xs text-primary-600 hover:text-primary-700 transition-colors">
+              Glömt lösenord?
+            </Link>
+          </div>
           <div className="relative">
             <input
               type={showPw ? 'text' : 'password'} required autoComplete="current-password"

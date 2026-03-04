@@ -150,7 +150,7 @@ export default function ForetagMinSida() {
     setSaving(true)
 
     try {
-      await supabase.from('companies').update({
+      const { error: updateError } = await supabase.from('companies').update({
         public_name: form.publicName,
         logo_url: form.logoUrl,
         contact_person: form.contactPerson,
@@ -158,7 +158,7 @@ export default function ForetagMinSida() {
         contact_phone: form.contactPhone,
         website: normalizeUrl(form.website),
         company_description: form.description,
-        counties: form.counties,
+        counties: form.counties.length > 0 ? form.counties : [],
         sends_b2b: form.sendsB2B,
         billing_method: form.billingMethod,
         billing_address: form.billingAddress,
@@ -166,6 +166,7 @@ export default function ForetagMinSida() {
         billing_city: form.billingCity,
         billing_email: form.billingEmail,
       }).eq('id', userId)
+      if (updateError) throw updateError
 
       await supabase.from('company_categories_b2c').delete().eq('company_id', userId)
       if (form.categoriesB2C.length > 0) {
@@ -368,13 +369,20 @@ export default function ForetagMinSida() {
         <div className="card p-6 space-y-4">
           <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Fakturering</h2>
           <div className="space-y-3 mb-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="radio"
-                checked={form.billingMethod === 'address'}
-                onChange={() => setForm(f => ({ ...f, billingMethod: 'address' }))}
-                className="h-4 w-4" />
-              <span className="text-sm text-gray-700">Postalisk faktura</span>
-            </label>
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio"
+                  checked={form.billingMethod === 'address'}
+                  onChange={() => setForm(f => ({ ...f, billingMethod: 'address' }))}
+                  className="h-4 w-4" />
+                <span className="text-sm text-gray-700">Postalisk faktura</span>
+              </label>
+              {form.billingMethod === 'address' && (
+                <p className="mt-1 ml-6 text-xs text-amber-600 font-medium">
+                  ⚠ OBS: Det tillkommer en administrativ avgift på 39 kr ex. moms vid postalisk faktura.
+                </p>
+              )}
+            </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio"
                 checked={form.billingMethod === 'email'}

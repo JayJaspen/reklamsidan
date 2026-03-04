@@ -26,7 +26,7 @@ export default function B2BFavoriter() {
   const [searchName, setSearchName] = useState('')
   const [searchCategory, setSearchCategory] = useState('')
   const [searchCounty, setSearchCounty] = useState('')
-  const [allCategories, setAllCategories] = useState<{ id: number; name: string }[]>([])
+  const [allCategories, setAllCategories] = useState<{ id: number; name: string; parent_id: number | null }[]>([])
   const [searchResults, setSearchResults] = useState<Company[]>([])
   const [searching, setSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
@@ -57,6 +57,7 @@ export default function B2BFavoriter() {
       .select('id, public_name, logo_url, company_description, website, counties')
       .in('id', ids)
       .eq('is_active', true)
+      .eq('sends_b2b', true)
       .order('public_name')
 
     if (!companies) { setFavorites([]); return }
@@ -76,10 +77,10 @@ export default function B2BFavoriter() {
   }
 
   async function loadCategories() {
+    // Hämta alla kategorier (föräldra och under) för sökning
     const { data } = await supabase
       .from('categories_b2b')
-      .select('id, name')
-      .is('parent_id', null)
+      .select('id, name, parent_id')
       .eq('is_active', true)
       .order('name')
     setAllCategories(data ?? [])
@@ -98,11 +99,19 @@ export default function B2BFavoriter() {
 
     if (searchCategory) {
       const catId = parseInt(searchCategory)
+      // Hitta alla underkategorier för vald kategori (eller kategorin direkt)
+      const { data: subCats } = await supabase
+        .from('categories_b2b')
+        .select('id')
+        .or(`id.eq.${catId},parent_id.eq.${catId}`)
+        .eq('is_active', true)
+      const catIds = (subCats ?? []).map(c => c.id)
+
       const { data: catLinks } = await supabase
         .from('company_categories_b2b')
         .select('company_id')
-        .eq('category_id', catId)
-      companyIds = (catLinks ?? []).map((r: any) => r.company_id)
+        .in('category_id', catIds)
+      companyIds = [...new Set((catLinks ?? []).map((r: any) => r.company_id as string))]
       if (companyIds.length === 0) {
         setSearchResults([])
         setSearching(false)
@@ -114,6 +123,7 @@ export default function B2BFavoriter() {
       .from('companies')
       .select('id, public_name, logo_url, company_description, website, counties')
       .eq('is_active', true)
+      .eq('sends_b2b', true)  // Visa bara B2B-aktiva företag
       .order('public_name')
 
     if (searchName) q = q.ilike('public_name', `%${searchName}%`)
@@ -174,6 +184,10 @@ export default function B2BFavoriter() {
     }
   }
 
+  // Bygg kategorilista med underkategorier för dropdown
+  const parentCats = allCategories.filter(c => c.parent_id === null)
+  const subCatsFor = (pid: number) => allCategories.filter(c => c.parent_id === pid)
+
   if (loading) return <div className="py-20 text-center text-gray-400">Laddar...</div>
 
   return (
@@ -233,8 +247,12 @@ export default function B2BFavoriter() {
               <select className="input-field" value={searchCategory}
                 onChange={e => setSearchCategory(e.target.value)}>
                 <option value="">Alla kategorier</option>
-                {allCategories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                {parentCats.map(parent => (
+                  <optgroup key={parent.id} label={parent.name}>
+                    {subCatsFor(parent.id).map(sub => (
+                      <option key={sub.id} value={sub.id}>{sub.name}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             </div>

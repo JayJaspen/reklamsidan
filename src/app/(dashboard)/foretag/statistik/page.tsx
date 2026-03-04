@@ -290,7 +290,91 @@ export default function Statistics() {
   }, [selectedAdId, followerIdArray])
 
   function handleExportPDF() {
-    alert('PDF-export kommer snart!')
+    if (!selectedAd) return
+    const totalReads = adReaderDetails.length
+    const followerReads = adReaderDetails.filter(r => r.is_follower).length
+    const generalReads = adReaderDetails.filter(r => !r.is_follower).length
+    const totalCost = adReaderDetails.reduce((s, r) => s + r.cost, 0)
+
+    // Gender distribution among readers
+    const genderCount: Record<string, number> = {}
+    adReaderDetails.forEach(r => { if (r.gender) genderCount[r.gender] = (genderCount[r.gender] ?? 0) + 1 })
+    // Age distribution among readers
+    const ageCount: Record<string, number> = {}
+    adReaderDetails.forEach(r => { if (r.age_group) ageCount[r.age_group] = (ageCount[r.age_group] ?? 0) + 1 })
+    // County distribution among readers
+    const countyCount: Record<string, number> = {}
+    adReaderDetails.forEach(r => { if (r.county) countyCount[r.county] = (countyCount[r.county] ?? 0) + 1 })
+
+    const html = `<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <title>Annonsrapport – ${selectedAd.name}</title>
+  <style>
+    body { font-family: Arial, sans-serif; color: #111; margin: 32px; font-size: 13px; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    h2 { font-size: 14px; margin: 18px 0 6px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+    .meta { color: #555; font-size: 12px; margin-bottom: 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 10px 14px; }
+    .card .label { font-size: 11px; color: #666; }
+    .card .value { font-size: 20px; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th { background: #f3f4f6; text-align: left; padding: 6px 8px; font-size: 11px; text-transform: uppercase; }
+    td { padding: 5px 8px; border-bottom: 1px solid #f0f0f0; }
+    .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .bar-label { width: 100px; font-size: 12px; }
+    .bar-bg { flex: 1; background: #e5e7eb; height: 14px; border-radius: 4px; overflow: hidden; }
+    .bar-fill { background: #3b82f6; height: 100%; }
+    .bar-val { width: 80px; text-align: right; font-size: 12px; }
+    @media print { body { margin: 16px; } }
+  </style>
+</head>
+<body>
+  <h1>Annonsrapport: ${selectedAd.name}</h1>
+  <p class="meta">
+    Typ: ${selectedAd.ad_type?.toUpperCase() ?? '–'} &nbsp;|&nbsp;
+    Aktiv: ${selectedAd.valid_from ? new Date(selectedAd.valid_from).toLocaleDateString('sv-SE') : '–'} – ${selectedAd.valid_to ? new Date(selectedAd.valid_to).toLocaleDateString('sv-SE') : '–'} &nbsp;|&nbsp;
+    Kostnadsgräns: ${(selectedAd as any).cost_limit ? (selectedAd as any).cost_limit + ' kr' : 'Ingen'}
+  </p>
+
+  <h2>Sammanfattning</h2>
+  <div class="grid">
+    <div class="card"><div class="label">Totala läsningar</div><div class="value">${totalReads}</div></div>
+    <div class="card"><div class="label">Total kostnad</div><div class="value">${totalCost} kr</div></div>
+    <div class="card"><div class="label">Följarläsningar</div><div class="value">${followerReads}</div></div>
+    <div class="card"><div class="label">Generella läsningar</div><div class="value">${generalReads}</div></div>
+  </div>
+
+  ${Object.keys(genderCount).length > 0 ? `
+  <h2>Könsfördelning</h2>
+  ${Object.entries(genderCount).sort((a,b) => b[1]-a[1]).map(([g, n]) => {
+    const pct = totalReads > 0 ? Math.round(n/totalReads*100) : 0
+    return `<div class="bar-row"><div class="bar-label">${g.charAt(0).toUpperCase()+g.slice(1)}</div><div class="bar-bg"><div class="bar-fill" style="width:${pct*3}%;max-width:100%"></div></div><div class="bar-val">${n} st (${pct}%)</div></div>`
+  }).join('')}` : ''}
+
+  ${Object.keys(ageCount).length > 0 ? `
+  <h2>Åldersfördelning</h2>
+  ${Object.entries(ageCount).map(([a, n]) => {
+    const pct = totalReads > 0 ? Math.round(n/totalReads*100) : 0
+    return `<div class="bar-row"><div class="bar-label">${a}</div><div class="bar-bg"><div class="bar-fill" style="width:${pct*3}%;max-width:100%"></div></div><div class="bar-val">${n} st (${pct}%)</div></div>`
+  }).join('')}` : ''}
+
+  ${Object.keys(countyCount).length > 0 ? `
+  <h2>Länsfördelning</h2>
+  ${Object.entries(countyCount).sort((a,b)=>b[1]-a[1]).map(([c, n]) => {
+    const pct = totalReads > 0 ? Math.round(n/totalReads*100) : 0
+    return `<div class="bar-row"><div class="bar-label" style="width:140px">${c}</div><div class="bar-bg"><div class="bar-fill" style="width:${pct*3}%;max-width:100%"></div></div><div class="bar-val">${n} st (${pct}%)</div></div>`
+  }).join('')}` : ''}
+
+  <p style="margin-top:24px;font-size:11px;color:#888;">Rapport genererad ${new Date().toLocaleDateString('sv-SE')} – Reklamsidan</p>
+  <script>window.onload = function(){ window.print(); }</script>
+</body>
+</html>`
+
+    const w = window.open('', '_blank')
+    if (w) { w.document.write(html); w.document.close() }
   }
 
   const selectedAd = ads.find(a => a.id === selectedAdId)
@@ -410,13 +494,11 @@ export default function Statistics() {
                     <p className="w-40 truncate text-sm text-gray-600">{county}</p>
                     <div className="flex-1 h-6 bg-gray-100 rounded overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-blue-300 to-blue-500 flex items-center justify-end pr-2"
+                        className="h-full bg-gradient-to-r from-blue-300 to-blue-500"
                         style={{ width: `${Math.max(percent * 3, 4)}%` }}
-                      >
-                        {percent > 5 && <span className="text-xs font-bold text-white">{count}</span>}
-                      </div>
+                      />
                     </div>
-                    <p className="w-10 text-right text-sm text-gray-600">{percent}%</p>
+                    <p className="w-28 text-right text-sm text-gray-700 font-medium">{count} st ({percent}%)</p>
                   </div>
                 )
               })}
@@ -436,13 +518,11 @@ export default function Statistics() {
                   <p className="w-12 text-sm font-medium text-gray-600">{age}</p>
                   <div className="flex-1 h-8 bg-gray-100 rounded overflow-hidden">
                     <div
-                      className="h-full bg-gradient-to-r from-blue-400 to-blue-600 flex items-center justify-end pr-2"
+                      className="h-full bg-gradient-to-r from-blue-400 to-blue-600"
                       style={{ width: `${percent * 3}%` }}
-                    >
-                      {percent > 5 && <span className="text-xs font-bold text-white">{count}</span>}
-                    </div>
+                    />
                   </div>
-                  <p className="w-12 text-right text-sm text-gray-600">{percent}%</p>
+                  <p className="w-28 text-right text-sm text-gray-700 font-medium">{count} st ({percent}%)</p>
                 </div>
               )
             })}
@@ -481,13 +561,11 @@ export default function Statistics() {
                     <p className="w-40 truncate text-sm text-gray-600">{county}</p>
                     <div className="flex-1 h-6 bg-gray-100 rounded overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-green-300 to-green-500 flex items-center justify-end pr-2"
+                        className="h-full bg-gradient-to-r from-green-300 to-green-500"
                         style={{ width: `${Math.max(percent * 3, 4)}%` }}
-                      >
-                        {percent > 5 && <span className="text-xs font-bold text-white">{count}</span>}
-                      </div>
+                      />
                     </div>
-                    <p className="w-10 text-right text-sm text-gray-600">{percent}%</p>
+                    <p className="w-28 text-right text-sm text-gray-700 font-medium">{count} st ({percent}%)</p>
                   </div>
                 )
               })}
@@ -516,6 +594,16 @@ export default function Statistics() {
 
         {selectedAdId && selectedAd && (
           <div className="space-y-6">
+            {!adDetailLoading && adReaderDetails.length > 0 && (
+              <div className="flex justify-end">
+                <button
+                  onClick={handleExportPDF}
+                  className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition"
+                >
+                  <Download className="h-4 w-4" /> Exportera PDF-rapport
+                </button>
+              </div>
+            )}
             {adDetailLoading ? (
               <p className="py-6 text-center text-gray-400">Laddar annonsdata...</p>
             ) : (() => {

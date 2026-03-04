@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Search, Download, Building2, X, Globe, Mail, Phone, MapPin, FileText } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
@@ -35,23 +35,74 @@ export default function AdminForetag() {
   const [loading, setLoading]     = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [selected, setSelected]   = useState<CompanyResult | null>(null)
+  const [categories, setCategories] = useState<{ id: number; name: string; parent_id: number | null; type: 'b2b' | 'b2c' }[]>([])
+
+  // Load categories on mount
+  useEffect(() => {
+    async function loadCategories() {
+      const [{ data: b2bCats }, { data: b2cCats }] = await Promise.all([
+        supabase.from('categories_b2b').select('id, name, parent_id').eq('is_active', true).order('name'),
+        supabase.from('categories_b2c').select('id, name, parent_id').eq('is_active', true).order('name'),
+      ])
+      const all = [
+        ...(b2bCats ?? []).map(c => ({ ...c, type: 'b2b' as const })),
+        ...(b2cCats ?? []).map(c => ({ ...c, type: 'b2c' as const })),
+      ]
+      setCategories(all)
+    }
+    loadCategories()
+  }, [])
 
   async function handleSearch() {
     setLoading(true)
     setSearched(true)
     setFetchError(null)
 
-    const { data, error } = await supabase
-      .from('companies')
-      .select('*')
-      .order('public_name')
+    // If category filter set, resolve matching company IDs
+    let categoryCompanyIds: string[] | null = null
+    if (filter.category) {
+      const [typeStr, idStr] = filter.category.split(':')
+      const catId = parseInt(idStr)
+      const table = typeStr === 'b2b' ? 'categories_b2b' : 'categories_b2c'
+      const linkTable = typeStr === 'b2b' ? 'company_categories_b2b' : 'company_categories_b2c'
+
+      const { data: subCats } = await supabase
+        .from(table)
+        .select('id')
+        .or(`id.eq.${catId},parent_id.eq.${catId}`)
+        .eq('is_active', true)
+      const catIds = (subCats ?? []).map(c => c.id)
+
+      const { data: catLinks } = await supabase
+        .from(linkTable)
+        .select('company_id')
+        .in('category_id', catIds)
+      categoryCompanyIds = [...new Set((catLinks ?? []).map((r: any) => r.company_id as string))]
+      if (categoryCompanyIds.length === 0) {
+        setResults([])
+        setLoading(false)
+        return
+      }
+    }
+
+    let q = supabase.from('companies').select('*').order('public_name')
+    if (categoryCompanyIds) q = q.in('id', categoryCompanyIds)
+
+    const { data, error } = await q
 
     if (error) {
       console.error('Supabase error:', error)
       setFetchError(`Databasfel: ${error.message} (code: ${error.code})`)
-    } else {
-      setResults((data ?? []) as CompanyResult[])
+      setLoading(false)
+      return
     }
+
+    // Apply county filter client-side (counties is an array column)
+    const filtered = filter.county
+      ? (data ?? []).filter(c => (c.counties ?? []).includes(filter.county))
+      : (data ?? [])
+
+    setResults(filtered as CompanyResult[])
     setLoading(false)
   }
 
@@ -94,6 +145,23 @@ export default function AdminForetag() {
             <select className="input-field" value={filter.category}
               onChange={e => setFilter(f => ({ ...f, category: e.target.value }))}>
               <option value="">Alla kategorier</option>
+              {(['b2b', 'b2c'] as const).map(type => {
+                const parents = categories.filter(c => c.type === type && c.parent_id === null)
+                if (parents.length === 0) return null
+                return (
+                  <optgroup key={type} label={type === 'b2b' ? '── B2B-kategorier ──' : '── B2C-kategorier ──'}>
+                    {parents.map(parent => {
+                      const subs = categories.filter(c => c.type === type && c.parent_id === parent.id)
+                      if (subs.length > 0) {
+                        return subs.map(sub => (
+                          <option key={`${type}:${sub.id}`} value={`${type}:${sub.id}`}>{parent.name} › {sub.name}</option>
+                        ))
+                      }
+                      return <option key={`${type}:${parent.id}`} value={`${type}:${parent.id}`}>{parent.name}</option>
+                    })}
+                  </optgroup>
+                )
+              })}
             </select>
           </div>
           <div className="flex items-end">

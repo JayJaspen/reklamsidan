@@ -37,13 +37,27 @@ export default function B2CAllReklam() {
     setSelectedCompany(null)
     setAds([])
 
+    // Only show companies that have B2C categories (filter out B2B-only companies)
+    const { data: b2cLinks } = await supabase
+      .from('company_categories_b2c')
+      .select('company_id')
+    const validB2CIds = [...new Set((b2cLinks ?? []).map((r: any) => r.company_id as string))]
+
     let query = supabase
       .from('companies')
       .select('id, public_name, logo_url')
       .eq('is_active', true)
 
+    if (validB2CIds.length > 0) {
+      query = query.in('id', validB2CIds)
+    }
+
     if (filter.query) {
       query = query.ilike('public_name', `%${filter.query}%`)
+    }
+
+    if (filter.county) {
+      query = query.contains('counties', [filter.county])
     }
 
     const { data } = await query.order('public_name')

@@ -41,9 +41,14 @@ export default function B2BAllReklam() {
       .from('companies')
       .select('id, public_name, logo_url')
       .eq('is_active', true)
+      .eq('sends_b2b', true)  // Only show B2B-capable companies
 
     if (filter.query) {
       query = query.ilike('public_name', `%${filter.query}%`)
+    }
+
+    if (filter.county) {
+      query = query.contains('counties', [filter.county])
     }
 
     const { data } = await query.order('public_name')
