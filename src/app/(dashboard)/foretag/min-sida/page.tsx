@@ -108,7 +108,7 @@ export default function ForetagMinSida() {
       const ext = file.name.split('.').pop()
       // Unikt filnamn per uppladdning för att undvika CDN-cache-problem
       const timestamp = Date.now()
-      const path = `logos/${userId}_${timestamp}.${ext}`
+      const path = `logos/${userId}/${timestamp}.${ext}`
 
       const { error: uploadError } = await supabase.storage
         .from('company-assets')

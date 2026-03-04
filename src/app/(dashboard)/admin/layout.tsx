@@ -6,6 +6,7 @@ const ADMIN_TABS = [
   { href: '/admin/anvandare', label: '👥 Användare' },
   { href: '/admin/foretag',   label: '🏢 Företag' },
   { href: '/admin/fakturering', label: '💰 Fakturering' },
+  { href: '/admin/kategorier', label: '🏷️ Kategorier' },
 ]
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

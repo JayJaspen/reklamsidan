@@ -8,6 +8,7 @@ import { SWEDISH_COUNTIES } from '@/lib/utils'
 type Ad = {
   id: string
   name: string
+  ad_type: string
   valid_from: string
   valid_to: string
   created_at: string
@@ -33,6 +34,17 @@ type CountyDist = {
   [key: string]: number
 }
 
+type ReaderDetail = {
+  user_id: string
+  read_at: string
+  user_type: 'b2c' | 'b2b' | 'unknown'
+  gender?: string
+  age_group?: string
+  county?: string
+  is_follower: boolean
+  cost: number
+}
+
 export default function Statistics() {
   const supabase = createClient()
   const [userId, setUserId] = useState<string | null>(null)
@@ -45,12 +57,13 @@ export default function Statistics() {
   const [countyDistB2C, setCountyDistB2C] = useState<CountyDist>({})
   const [countyDistB2B, setCountyDistB2B] = useState<CountyDist>({})
   const [b2bFollowerCompanies, setB2bFollowerCompanies] = useState<string[]>([])
-  const [adReaders, setAdReaders] = useState<Array<{ user_id: string; read_at: string }>>([])
+  const [followerIdArray, setFollowerIdArray] = useState<string[]>([])
+  const [adReaderDetails, setAdReaderDetails] = useState<ReaderDetail[]>([])
   const [loading, setLoading] = useState(true)
-  const [adLoading, setAdLoading] = useState(false)
-  const [selectedGenderFilter, setSelectedGenderFilter] = useState('')
-  const [selectedCountyFilter, setSelectedCountyFilter] = useState('')
-  const [selectedAgeFilter, setSelectedAgeFilter] = useState('')
+  const [adDetailLoading, setAdDetailLoading] = useState(false)
+  const [adFilterGender, setAdFilterGender] = useState('')
+  const [adFilterAge, setAdFilterAge] = useState('')
+  const [adFilterCounty, setAdFilterCounty] = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -60,7 +73,7 @@ export default function Statistics() {
       // Fetch all ads for this company
       const { data: adsData } = await supabase
         .from('ads')
-        .select('id, name, valid_from, valid_to, created_at')
+        .select('id, name, ad_type, valid_from, valid_to, created_at')
         .eq('company_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -100,6 +113,7 @@ export default function Statistics() {
         b2c: uniqueB2CFollowers.size,
         b2b: uniqueB2BFollowers.size,
       })
+      setFollowerIdArray([...Array.from(uniqueB2CFollowers), ...Array.from(uniqueB2BFollowers)])
 
       // Fetch gender + county distribution for B2C followers
       if (uniqueB2CFollowers.size > 0) {
@@ -182,17 +196,98 @@ export default function Statistics() {
 
   useEffect(() => {
     if (!selectedAdId || !userId) return
+    setAdDetailLoading(true)
+    setAdReaderDetails([])
 
-    setAdLoading(true)
-    supabase
-      .from('ad_reads')
-      .select('user_id, read_at')
-      .eq('ad_id', selectedAdId)
-      .then(({ data }) => {
-        setAdReaders(data ?? [])
-        setAdLoading(false)
+    async function loadReaderDetails() {
+      const { data: reads } = await supabase
+        .from('ad_reads')
+        .select('user_id, read_at')
+        .eq('ad_id', selectedAdId)
+
+      if (!reads || reads.length === 0) {
+        setAdReaderDetails([])
+        setAdDetailLoading(false)
+        return
+      }
+
+      const readerIds = reads.map(r => r.user_id)
+      const followerSet = new Set(followerIdArray)
+
+      const { data: profiles } = await supabase
+        .from('user_profiles')
+        .select('id, user_type')
+        .in('id', readerIds)
+      const profileMap = new Map(profiles?.map(p => [p.id, p.user_type]) ?? [])
+
+      const b2cIds = readerIds.filter(id => profileMap.get(id) === 'b2c')
+      const b2cMap = new Map<string, { gender: string; age_group: string; county: string }>()
+      if (b2cIds.length > 0) {
+        const { data: b2cData } = await supabase
+          .from('users_b2c')
+          .select('id, gender, birth_year, county_id')
+          .in('id', b2cIds)
+        const currentYear = new Date().getFullYear()
+        b2cData?.forEach(u => {
+          const age = currentYear - (u.birth_year ?? 0)
+          let age_group = ''
+          if (age >= 18 && age < 26) age_group = '18-25'
+          else if (age >= 26 && age < 36) age_group = '26-35'
+          else if (age >= 36 && age < 46) age_group = '36-45'
+          else if (age >= 46 && age < 56) age_group = '46-55'
+          else if (age >= 56 && age < 66) age_group = '56-65'
+          else if (age >= 66) age_group = '65+'
+          b2cMap.set(u.id, {
+            gender: u.gender ?? '',
+            age_group,
+            county: u.county_id ? (SWEDISH_COUNTIES[u.county_id - 1] ?? '') : '',
+          })
+        })
+      }
+
+      const b2bIds = readerIds.filter(id => profileMap.get(id) === 'b2b')
+      const b2bMap = new Map<string, { county: string }>()
+      if (b2bIds.length > 0) {
+        const { data: b2bData } = await supabase
+          .from('users_b2b')
+          .select('id, county_id')
+          .in('id', b2bIds)
+        b2bData?.forEach(u => {
+          b2bMap.set(u.id, {
+            county: u.county_id ? (SWEDISH_COUNTIES[u.county_id - 1] ?? '') : '',
+          })
+        })
+      }
+
+      const selectedAdObj = ads.find(a => a.id === selectedAdId)
+      const adType = selectedAdObj?.ad_type ?? 'b2c'
+
+      const details: ReaderDetail[] = reads.map(read => {
+        const userType = (profileMap.get(read.user_id) ?? 'unknown') as 'b2c' | 'b2b' | 'unknown'
+        const isFollower = followerSet.has(read.user_id)
+        let cost = 0
+        if (adType === 'b2c') cost = isFollower ? 3 : 1
+        else if (adType === 'b2b') cost = isFollower ? 5 : 3
+        const b2cInfo = b2cMap.get(read.user_id)
+        const b2bInfo = b2bMap.get(read.user_id)
+        return {
+          user_id: read.user_id,
+          read_at: read.read_at,
+          user_type: userType,
+          gender: b2cInfo?.gender,
+          age_group: b2cInfo?.age_group,
+          county: b2cInfo?.county ?? b2bInfo?.county,
+          is_follower: isFollower,
+          cost,
+        }
       })
-  }, [selectedAdId])
+
+      setAdReaderDetails(details)
+      setAdDetailLoading(false)
+    }
+
+    loadReaderDetails()
+  }, [selectedAdId, followerIdArray])
 
   function handleExportPDF() {
     alert('PDF-export kommer snart!')
@@ -301,6 +396,34 @@ export default function Statistics() {
         </div>
       )}
 
+      {/* County distribution B2C */}
+      {Object.keys(countyDistB2C).length > 0 && (
+        <div className="card p-6">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">Länsfördelning (B2C)</h2>
+          <div className="space-y-2">
+            {Object.entries(countyDistB2C)
+              .sort((a, b) => b[1] - a[1])
+              .map(([county, count]) => {
+                const percent = followers.b2c > 0 ? Math.round((count / followers.b2c) * 100) : 0
+                return (
+                  <div key={county} className="flex items-center gap-4">
+                    <p className="w-40 truncate text-sm text-gray-600">{county}</p>
+                    <div className="flex-1 h-6 bg-gray-100 rounded overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-blue-300 to-blue-500 flex items-center justify-end pr-2"
+                        style={{ width: `${Math.max(percent * 3, 4)}%` }}
+                      >
+                        {percent > 5 && <span className="text-xs font-bold text-white">{count}</span>}
+                      </div>
+                    </div>
+                    <p className="w-10 text-right text-sm text-gray-600">{percent}%</p>
+                  </div>
+                )
+              })}
+          </div>
+        </div>
+      )}
+
       {/* Age distribution */}
       {followers.b2c > 0 && (
         <div className="card p-6">
@@ -344,34 +467,6 @@ export default function Statistics() {
         </div>
       )}
 
-      {/* County distribution B2C */}
-      {Object.keys(countyDistB2C).length > 0 && (
-        <div className="card p-6">
-          <h2 className="mb-4 text-lg font-semibold text-gray-900">Länsfördelning (B2C)</h2>
-          <div className="space-y-2">
-            {Object.entries(countyDistB2C)
-              .sort((a, b) => b[1] - a[1])
-              .map(([county, count]) => {
-                const percent = followers.b2c > 0 ? Math.round((count / followers.b2c) * 100) : 0
-                return (
-                  <div key={county} className="flex items-center gap-4">
-                    <p className="w-40 truncate text-sm text-gray-600">{county}</p>
-                    <div className="flex-1 h-6 bg-gray-100 rounded overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-blue-300 to-blue-500 flex items-center justify-end pr-2"
-                        style={{ width: `${Math.max(percent * 3, 4)}%` }}
-                      >
-                        {percent > 5 && <span className="text-xs font-bold text-white">{count}</span>}
-                      </div>
-                    </div>
-                    <p className="w-10 text-right text-sm text-gray-600">{percent}%</p>
-                  </div>
-                )
-              })}
-          </div>
-        </div>
-      )}
-
       {/* County distribution B2B */}
       {Object.keys(countyDistB2B).length > 0 && (
         <div className="card p-6">
@@ -408,7 +503,7 @@ export default function Statistics() {
           <select
             className="input-field"
             value={selectedAdId || ''}
-            onChange={e => setSelectedAdId(e.target.value)}
+            onChange={e => { setSelectedAdId(e.target.value); setAdFilterGender(''); setAdFilterAge(''); setAdFilterCounty('') }}
           >
             <option value="">-- Välj en annons --</option>
             {ads.map(ad => (
@@ -420,54 +515,117 @@ export default function Statistics() {
         </div>
 
         {selectedAdId && selectedAd && (
-          <div>
-            <div className="mb-4 flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">{selectedAd.name}</h3>
-                <p className="text-sm text-gray-500">
-                  {adReaders.length} {adReaders.length === 1 ? 'läsare' : 'läsare'}
-                </p>
-              </div>
-              <button
-                onClick={handleExportPDF}
-                className="btn-secondary gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Exportera PDF
-              </button>
-            </div>
+          <div className="space-y-6">
+            {adDetailLoading ? (
+              <p className="py-6 text-center text-gray-400">Laddar annonsdata...</p>
+            ) : (() => {
+              const totalCost = adReaderDetails.reduce((s, r) => s + r.cost, 0)
+              const filteredDetails = adReaderDetails.filter(r => {
+                if (adFilterGender && r.gender !== adFilterGender) return false
+                if (adFilterAge && r.age_group !== adFilterAge) return false
+                if (adFilterCounty && r.county !== adFilterCounty) return false
+                return true
+              })
+              const filteredCost = filteredDetails.reduce((s, r) => s + r.cost, 0)
+              const hasFilters = adFilterGender || adFilterAge || adFilterCounty
+              return (
+                <>
+                  {/* Summary cards */}
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div className="rounded-xl bg-blue-50 border border-blue-100 p-4">
+                      <p className="text-xs text-blue-600 font-medium">Totala läsningar</p>
+                      <p className="text-2xl font-bold text-blue-900">{adReaderDetails.length}</p>
+                    </div>
+                    <div className="rounded-xl bg-green-50 border border-green-100 p-4">
+                      <p className="text-xs text-green-600 font-medium">Total kostnad</p>
+                      <p className="text-2xl font-bold text-green-900">{totalCost} kr</p>
+                    </div>
+                    <div className="rounded-xl bg-purple-50 border border-purple-100 p-4">
+                      <p className="text-xs text-purple-600 font-medium">Följarläsningar</p>
+                      <p className="text-2xl font-bold text-purple-900">{adReaderDetails.filter(r => r.is_follower).length}</p>
+                    </div>
+                    <div className="rounded-xl bg-orange-50 border border-orange-100 p-4">
+                      <p className="text-xs text-orange-600 font-medium">Generella läsningar</p>
+                      <p className="text-2xl font-bold text-orange-900">{adReaderDetails.filter(r => !r.is_follower).length}</p>
+                    </div>
+                  </div>
 
-            {adLoading ? (
-              <p className="py-4 text-center text-gray-400">Laddar läsardata...</p>
-            ) : adReaders.length === 0 ? (
-              <p className="py-4 text-center text-gray-400">Ingen har läst denna annons än</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Läsare</th>
-                      <th className="text-left py-2 px-2 font-semibold text-gray-600">Läst</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {adReaders.slice(0, 10).map((reader, idx) => (
-                      <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-2 px-2 text-gray-700">{reader.user_id.slice(0, 8)}...</td>
-                        <td className="py-2 px-2 text-gray-600">
-                          {new Date(reader.read_at).toLocaleDateString('sv-SE')}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {adReaders.length > 10 && (
-                  <p className="mt-2 text-xs text-gray-400">
-                    + {adReaders.length - 10} fler läsare
-                  </p>
-                )}
-              </div>
-            )}
+                  {/* Filters (B2C ads only) */}
+                  {adReaderDetails.some(r => r.user_type === 'b2c') && (
+                    <div>
+                      <p className="mb-2 text-sm font-semibold text-gray-700">Filtrera läsare</p>
+                      <div className="flex flex-wrap gap-3 items-center">
+                        <select className="input-field w-auto text-sm py-1.5" value={adFilterGender} onChange={e => setAdFilterGender(e.target.value)}>
+                          <option value="">Alla kön</option>
+                          <option value="man">Man</option>
+                          <option value="kvinna">Kvinna</option>
+                          <option value="annat">Annat</option>
+                        </select>
+                        <select className="input-field w-auto text-sm py-1.5" value={adFilterAge} onChange={e => setAdFilterAge(e.target.value)}>
+                          <option value="">Alla åldrar</option>
+                          {['18-25','26-35','36-45','46-55','56-65','65+'].map(a => <option key={a} value={a}>{a}</option>)}
+                        </select>
+                        <select className="input-field w-auto text-sm py-1.5" value={adFilterCounty} onChange={e => setAdFilterCounty(e.target.value)}>
+                          <option value="">Alla län</option>
+                          {[...new Set(adReaderDetails.map(r => r.county).filter(Boolean))].sort().map(c => <option key={c} value={c as string}>{c}</option>)}
+                        </select>
+                        {hasFilters && (
+                          <button onClick={() => { setAdFilterGender(''); setAdFilterAge(''); setAdFilterCounty('') }} className="text-xs text-gray-500 hover:text-gray-700 underline">
+                            Rensa filter
+                          </button>
+                        )}
+                      </div>
+                      {hasFilters && (
+                        <p className="mt-2 text-sm text-gray-500">
+                          {filteredDetails.length} av {adReaderDetails.length} läsare &middot; Filtrerad kostnad: <span className="font-semibold text-gray-700">{filteredCost} kr</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Readers table */}
+                  {adReaderDetails.length === 0 ? (
+                    <p className="py-4 text-center text-gray-400">Ingen har läst denna annons än</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200 bg-gray-50 text-left">
+                            <th className="py-2 px-3 font-semibold text-gray-600">Typ</th>
+                            <th className="py-2 px-3 font-semibold text-gray-600">Kön</th>
+                            <th className="py-2 px-3 font-semibold text-gray-600">Ålder</th>
+                            <th className="py-2 px-3 font-semibold text-gray-600">Län</th>
+                            <th className="py-2 px-3 font-semibold text-gray-600">Följare</th>
+                            <th className="py-2 px-3 font-semibold text-gray-600 text-right">Kostnad</th>
+                            <th className="py-2 px-3 font-semibold text-gray-600">Datum</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredDetails.slice(0, 25).map((reader, idx) => (
+                            <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-2 px-3">
+                                <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${reader.user_type === 'b2c' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                                  {reader.user_type.toUpperCase()}
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 text-gray-600 capitalize">{reader.gender || '—'}</td>
+                              <td className="py-2 px-3 text-gray-600">{reader.age_group || '—'}</td>
+                              <td className="py-2 px-3 text-gray-600 max-w-[120px] truncate">{reader.county || '—'}</td>
+                              <td className="py-2 px-3">{reader.is_follower ? <span className="text-xs text-green-700 font-medium">✓ Ja</span> : <span className="text-xs text-gray-400">Nej</span>}</td>
+                              <td className="py-2 px-3 text-right font-medium text-gray-700">{reader.cost} kr</td>
+                              <td className="py-2 px-3 text-gray-500">{new Date(reader.read_at).toLocaleDateString('sv-SE')}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {filteredDetails.length > 25 && (
+                        <p className="mt-2 text-xs text-gray-400">+ {filteredDetails.length - 25} fler läsare (totalt {filteredDetails.length})</p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
         )}
       </div>

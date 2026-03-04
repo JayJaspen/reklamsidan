@@ -35,9 +35,11 @@ export default function SkickaReklam() {
     categories: [],
   })
   const [categories, setCategories] = useState<{ id: number; name: string; parent_id: number | null }[]>([])
+  const [costLimit, setCostLimit] = useState('')
   const [audienceCount, setAudienceCount] = useState(0)
   const [uploading, setUploading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [submittedAdName, setSubmittedAdName] = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -138,6 +140,7 @@ export default function SkickaReklam() {
           ad_type: targeting.type,
           valid_from: validFrom,
           valid_to: validTo,
+          cost_limit: costLimit ? parseInt(costLimit) : null,
         })
         .select()
         .single()
@@ -189,14 +192,14 @@ export default function SkickaReklam() {
         }
       }
 
+      setSubmittedAdName(adName)
       setSubmitted(true)
       setFile(null)
       setAdName('')
       setValidFrom('')
       setValidTo('')
+      setCostLimit('')
       setTargeting({ type: 'b2c', genders: [], ageGroups: [], counties: [], categories: [] })
-
-      setTimeout(() => setSubmitted(false), 3000)
     } catch (error) {
       console.error('Error:', error)
       alert(`Fel vid skapande av annons: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
@@ -241,12 +244,29 @@ export default function SkickaReklam() {
       </div>
 
       {submitted && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-          Annons skapad! Du kan nu se den i din statistik.
+        <div className="card p-10 text-center space-y-5">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+            <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Annons publicerad!</h2>
+            <p className="mt-2 text-gray-500">
+              <span className="font-medium text-gray-700">&ldquo;{submittedAdName}&rdquo;</span> är nu live och visas för din målgrupp.
+            </p>
+          </div>
+          <p className="text-sm text-gray-400">Du kan följa läsningar och kostnad under Statistik.</p>
+          <button
+            onClick={() => setSubmitted(false)}
+            className="btn-primary mx-auto gap-2 px-8"
+          >
+            <Send className="h-4 w-4" /> Skicka ny annons
+          </button>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      {!submitted && <form onSubmit={handleSubmit} className="space-y-6">
         {/* File upload */}
         <div className="card p-6">
           <h2 className="mb-4 text-sm font-semibold text-gray-700 uppercase tracking-wide">Mediainnehål</h2>
@@ -303,6 +323,24 @@ export default function SkickaReklam() {
                 required
               />
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-600">
+              Kostnadsgräns (SEK) <span className="text-gray-400 font-normal">– valfritt</span>
+            </label>
+            <div className="relative">
+              <input
+                type="number"
+                min="1"
+                className="input-field pr-12"
+                placeholder="t.ex. 500"
+                value={costLimit}
+                onChange={e => setCostLimit(e.target.value)}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">kr</span>
+            </div>
+            <p className="mt-1 text-xs text-gray-400">Annonsen döljs automatiskt när kostnadsgränsen nås.</p>
           </div>
         </div>
 
@@ -505,7 +543,7 @@ export default function SkickaReklam() {
           <Send className="h-4 w-4" />
           {uploading ? 'Publicerar...' : 'Publicera annons'}
         </button>
-      </form>
+      </form>}
     </div>
   )
 }
