@@ -33,11 +33,13 @@ export default function AdminForetag() {
   const [results, setResults]     = useState<CompanyResult[]>([])
   const [searched, setSearched]   = useState(false)
   const [loading, setLoading]     = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [selected, setSelected]   = useState<CompanyResult | null>(null)
 
   async function handleSearch() {
     setLoading(true)
     setSearched(true)
+    setFetchError(null)
 
     const { data, error } = await supabase
       .from('companies')
@@ -49,7 +51,12 @@ export default function AdminForetag() {
       `)
       .order('public_name')
 
-    if (!error && data) setResults(data as CompanyResult[])
+    if (error) {
+      console.error('Supabase error:', error)
+      setFetchError(`Databasfel: ${error.message} (code: ${error.code})`)
+    } else {
+      setResults((data ?? []) as CompanyResult[])
+    }
     setLoading(false)
   }
 
@@ -102,6 +109,12 @@ export default function AdminForetag() {
           </div>
         </div>
       </div>
+
+      {fetchError && (
+        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {fetchError}
+        </div>
+      )}
 
       {!searched ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 py-16 text-gray-400">
