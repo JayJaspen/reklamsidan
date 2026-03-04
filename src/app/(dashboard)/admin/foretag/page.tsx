@@ -43,12 +43,7 @@ export default function AdminForetag() {
 
     const { data, error } = await supabase
       .from('companies')
-      .select(`
-        id, public_name, registered_name, org_number,
-        contact_person, contact_email, contact_phone, website, is_active,
-        company_description, counties, sends_b2b, logo_url,
-        billing_method, billing_address, billing_postal_code, billing_city, billing_email
-      `)
+      .select('*')
       .order('public_name')
 
     if (error) {

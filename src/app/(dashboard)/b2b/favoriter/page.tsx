@@ -1,75 +1,315 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import AdCard from '@/components/AdCard'
-import { Star } from 'lucide-react'
+'use client'
 
-export default async function B2BFavoriter() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+import { useState, useEffect, useMemo } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { Star, Search, Building2, Globe } from 'lucide-react'
 
-  // Hämta favorit-företag och slängda annonser separat
-  const [{ data: favs }, { data: discarded }] = await Promise.all([
-    supabase.from('user_favorites').select('company_id').eq('user_id', user.id),
-    supabase.from('discarded_ads').select('ad_id').eq('user_id', user.id),
-  ])
+type Company = {
+  id: string
+  public_name: string
+  logo_url: string | null
+  company_description: string | null
+  website: string | null
+  categories: string[]
+}
 
-  const favIds = (favs ?? []).map(f => f.company_id)
-  const discardedIds = (discarded ?? []).map(d => d.ad_id)
+export default function B2BFavoriter() {
+  const supabase = createClient()
 
-  if (favIds.length === 0) {
-    return (
-      <div>
-        <h1 className="mb-6 text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Star className="h-6 w-6 text-yellow-400" /> Favoriter
-        </h1>
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 py-20 text-center">
-          <Star className="mb-4 h-14 w-14 text-gray-200" />
-          <h2 className="mb-2 text-lg font-semibold text-gray-400">Inga favoriter än</h2>
-          <p className="text-sm text-gray-400 max-w-sm">
-            Gå till fliken <strong>All reklam</strong> och favoritmarkera företag
-            för att se deras erbjudanden här.
-          </p>
-        </div>
-      </div>
-    )
+  const [userId, setUserId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const [favorites, setFavorites] = useState<Company[]>([])
+
+  const [searchName, setSearchName] = useState('')
+  const [searchCategory, setSearchCategory] = useState('')
+  const [allCategories, setAllCategories] = useState<{ id: number; name: string }[]>([])
+  const [searchResults, setSearchResults] = useState<Company[]>([])
+  const [searching, setSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
+
+  const followedIds = useMemo(() => new Set(favorites.map(f => f.id)), [favorites])
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      setUserId(user.id)
+      await loadFavorites(user.id)
+      await loadCategories()
+      setLoading(false)
+    })
+  }, [])
+
+  async function loadFavorites(uid: string) {
+    const { data } = await supabase
+      .from('user_favorites')
+      .select('company_id')
+      .eq('user_id', uid)
+
+    if (!data || data.length === 0) { setFavorites([]); return }
+
+    const ids = data.map(f => f.company_id)
+    const { data: companies } = await supabase
+      .from('companies')
+      .select('id, public_name, logo_url, company_description, website')
+      .in('id', ids)
+      .eq('is_active', true)
+      .order('public_name')
+
+    if (!companies) { setFavorites([]); return }
+
+    const { data: catLinks } = await supabase
+      .from('company_categories_b2b')
+      .select('company_id, categories_b2b(name)')
+      .in('company_id', ids)
+
+    const catMap: Record<string, string[]> = {}
+    ;(catLinks ?? []).forEach((row: any) => {
+      if (!catMap[row.company_id]) catMap[row.company_id] = []
+      if (row.categories_b2b?.name) catMap[row.company_id].push(row.categories_b2b.name)
+    })
+
+    setFavorites(companies.map(c => ({ ...c, categories: catMap[c.id] ?? [] })))
   }
 
-  // Hämta aktiva annonser från favorit-företag, exkl. slängda
-  let query = supabase
-    .from('active_ads')
-    .select('*')
-    .eq('ad_type', 'b2b')
-    .in('company_id', favIds)
-    .order('valid_to')
-
-  if (discardedIds.length > 0) {
-    query = query.not('id', 'in', `(${discardedIds.join(',')})`)
+  async function loadCategories() {
+    const { data } = await supabase
+      .from('categories_b2b')
+      .select('id, name')
+      .is('parent_id', null)
+      .eq('is_active', true)
+      .order('name')
+    setAllCategories(data ?? [])
   }
 
-  const { data: ads } = await query
+  async function handleSearch() {
+    if (!searchName && !searchCategory) return
+    setSearching(true)
+    setHasSearched(true)
+
+    let companyIds: string[] | null = null
+
+    if (searchCategory) {
+      const catId = parseInt(searchCategory)
+      const { data: catLinks } = await supabase
+        .from('company_categories_b2b')
+        .select('company_id')
+        .eq('category_id', catId)
+      companyIds = (catLinks ?? []).map((r: any) => r.company_id)
+      if (companyIds.length === 0) {
+        setSearchResults([])
+        setSearching(false)
+        return
+      }
+    }
+
+    let q = supabase
+      .from('companies')
+      .select('id, public_name, logo_url, company_description, website')
+      .eq('is_active', true)
+      .order('public_name')
+
+    if (searchName) q = q.ilike('public_name', `%${searchName}%`)
+    if (companyIds) q = q.in('id', companyIds)
+
+    const { data: companies } = await q
+
+    if (!companies || companies.length === 0) {
+      setSearchResults([])
+      setSearching(false)
+      return
+    }
+
+    const ids = companies.map(c => c.id)
+    const { data: catLinks } = await supabase
+      .from('company_categories_b2b')
+      .select('company_id, categories_b2b(name)')
+      .in('company_id', ids)
+
+    const catMap: Record<string, string[]> = {}
+    ;(catLinks ?? []).forEach((row: any) => {
+      if (!catMap[row.company_id]) catMap[row.company_id] = []
+      if (row.categories_b2b?.name) catMap[row.company_id].push(row.categories_b2b.name)
+    })
+
+    setSearchResults(companies.map(c => ({ ...c, categories: catMap[c.id] ?? [] })))
+    setSearching(false)
+  }
+
+  async function toggleFollow(companyId: string) {
+    if (!userId) return
+    if (followedIds.has(companyId)) {
+      await supabase.from('user_favorites').delete()
+        .eq('user_id', userId).eq('company_id', companyId)
+      setFavorites(f => f.filter(c => c.id !== companyId))
+    } else {
+      await supabase.from('user_favorites').insert({ user_id: userId, company_id: companyId })
+      const { data } = await supabase
+        .from('companies')
+        .select('id, public_name, logo_url, company_description, website')
+        .eq('id', companyId).single()
+      if (data) setFavorites(f => [...f, { ...data, categories: [] }])
+    }
+  }
+
+  if (loading) return <div className="py-20 text-center text-gray-400">Laddar...</div>
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Star className="h-6 w-6 text-yellow-400" />
-          Favoriter
-        </h1>
-        <p className="text-sm text-gray-500">Reklam från företag du följer</p>
-      </div>
+    <div className="max-w-4xl space-y-10">
 
-      {(!ads || ads.length === 0) ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 py-20 text-center">
-          <p className="text-gray-400">Inga aktiva annonser från dina favorit-företag just nu</p>
+      {/* ── Mina favoriter ─────────────────────────────────── */}
+      <section>
+        <div className="mb-4 flex items-center gap-2">
+          <Star className="h-5 w-5 text-yellow-400" />
+          <h1 className="text-xl font-bold text-gray-900">Mina favoriter</h1>
+          <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-semibold text-yellow-700">
+            {favorites.length}
+          </span>
         </div>
+
+        {favorites.length === 0 ? (
+          <div className="rounded-2xl border-2 border-dashed border-gray-200 py-12 text-center">
+            <Star className="mx-auto mb-3 h-10 w-10 text-gray-200" />
+            <p className="text-sm text-gray-400">Du följer inga företag än. Sök nedan för att hitta leverantörer.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {favorites.map(c => (
+              <CompanyCard
+                key={c.id}
+                company={c}
+                isFollowing
+                onToggle={() => toggleFollow(c.id)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ── Hitta fler företag ─────────────────────────────── */}
+      <section>
+        <div className="mb-4 flex items-center gap-2">
+          <Search className="h-5 w-5 text-primary-600" />
+          <h2 className="text-xl font-bold text-gray-900">Hitta leverantörer</h2>
+        </div>
+
+        <div className="card p-5 mb-4">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-500">Företagsnamn</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Sök namn..."
+                value={searchName}
+                onChange={e => setSearchName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-500">Kategori</label>
+              <select className="input-field" value={searchCategory}
+                onChange={e => setSearchCategory(e.target.value)}>
+                <option value="">Alla kategorier</option>
+                {allCategories.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={handleSearch}
+                disabled={searching}
+                className="btn-primary w-full gap-2"
+              >
+                <Search className="h-4 w-4" />
+                {searching ? 'Söker...' : 'Sök'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {hasSearched && !searching && (
+          searchResults.length === 0 ? (
+            <div className="rounded-xl border border-gray-200 py-10 text-center text-sm text-gray-400">
+              Inga företag matchade din sökning
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {searchResults.map(c => (
+                <CompanyCard
+                  key={c.id}
+                  company={c}
+                  isFollowing={followedIds.has(c.id)}
+                  onToggle={() => toggleFollow(c.id)}
+                />
+              ))}
+            </div>
+          )
+        )}
+      </section>
+    </div>
+  )
+}
+
+function CompanyCard({
+  company,
+  isFollowing,
+  onToggle,
+}: {
+  company: Company
+  isFollowing: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div className="card p-4 flex gap-4">
+      {company.logo_url ? (
+        <img src={company.logo_url} alt="" className="h-14 w-14 flex-shrink-0 rounded-lg object-contain border border-gray-100" />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ads.map(ad => (
-            <AdCard key={ad.id} ad={ad} userId={user.id} tabSource={1} />
-          ))}
+        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg bg-gray-100">
+          <Building2 className="h-6 w-6 text-gray-400" />
         </div>
       )}
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-semibold text-gray-900 leading-tight">{company.public_name}</p>
+          <button
+            onClick={onToggle}
+            className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition ${
+              isFollowing
+                ? 'bg-yellow-100 text-yellow-700 hover:bg-red-50 hover:text-red-600'
+                : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+            }`}
+          >
+            {isFollowing ? '★ Följer' : '+ Följ'}
+          </button>
+        </div>
+
+        {company.company_description && (
+          <p className="mt-1 text-xs text-gray-500 line-clamp-2">{company.company_description}</p>
+        )}
+
+        {company.categories.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {company.categories.slice(0, 3).map(cat => (
+              <span key={cat} className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">{cat}</span>
+            ))}
+          </div>
+        )}
+
+        {company.website && (
+          <a
+            href={company.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1 text-xs text-primary-600 hover:text-primary-800"
+            onClick={e => e.stopPropagation()}
+          >
+            <Globe className="h-3 w-3" /> Besök webbplats
+          </a>
+        )}
+      </div>
     </div>
   )
 }
