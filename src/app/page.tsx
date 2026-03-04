@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Megaphone, Building2, Users, Star, Filter, Globe, ChevronRight, Check, TrendingUp, Target, Shield } from 'lucide-react'
+import { Megaphone, Building2, Users, Star, Filter, Globe, ChevronRight, TrendingUp, Target, Shield } from 'lucide-react'
 
 export default function LandingPage() {
   return (
@@ -32,55 +32,38 @@ export default function LandingPage() {
         <div className="pointer-events-none absolute -right-20 top-20 h-72 w-72 rounded-full bg-blue-400/10 blur-3xl" />
 
         <div className="relative mx-auto max-w-4xl text-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-primary-200 backdrop-blur">
-            <TrendingUp className="h-3.5 w-3.5" />
-            Betala bara för läst reklam
-          </div>
-
           <h1 className="mb-6 text-5xl font-extrabold leading-tight tracking-tight sm:text-6xl">
-            Digital reklam som når
+            Reklam du faktiskt
             <br />
             <span className="bg-gradient-to-r from-blue-300 to-primary-300 bg-clip-text text-transparent">
-              rätt mottagare
+              vill ha
             </span>
           </h1>
 
           <p className="mx-auto mb-10 max-w-2xl text-lg text-primary-200 leading-relaxed">
-            Skicka riktad reklam till privatpersoner och företag som faktiskt är intresserade.
-            Välj målgrupp efter kön, ålder, region och intresse.
+            Följ dina favoritföretag, välj kategorier du bryr dig om och ta emot
+            relevant reklam direkt i din feed. Enkelt, smidigt och helt utan spam.
           </p>
 
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
-              href="/register/foretag"
+              href="/register/b2c"
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-white px-8 py-4 font-bold text-primary-700 shadow-lg transition hover:bg-primary-50 sm:w-auto"
             >
-              <Building2 className="h-5 w-5" />
-              Annonsera som företag
+              <Users className="h-5 w-5" />
+              Kom igång gratis
               <ChevronRight className="h-4 w-4" />
             </Link>
             <Link
-              href="/register/b2c"
+              href="/register/b2b"
               className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-white/25 bg-white/10 px-8 py-4 font-bold text-white backdrop-blur transition hover:bg-white/20 sm:w-auto"
             >
-              <Users className="h-5 w-5" />
-              Registrera som privatperson
+              <Building2 className="h-5 w-5" />
+              Jag är ett mottagarföretag
             </Link>
           </div>
 
-          {/* Stats */}
-          <div className="mt-14 grid grid-cols-3 gap-6 border-t border-white/15 pt-10">
-            {[
-              { value: '3 kr', label: 'Per läsning B2C' },
-              { value: '5 kr', label: 'Per läsning B2B' },
-              { value: '100%', label: 'Riktad reklam' },
-            ].map(({ value, label }) => (
-              <div key={label} className="text-center">
-                <div className="text-3xl font-extrabold text-white">{value}</div>
-                <div className="mt-1 text-sm text-primary-300">{label}</div>
-              </div>
-            ))}
-          </div>
+
         </div>
       </section>
 
@@ -171,56 +154,6 @@ export default function LandingPage() {
                   <h3 className="mb-1 font-semibold text-gray-900">{title}</h3>
                   <p className="text-sm text-gray-500 leading-relaxed">{desc}</p>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Pricing ── */}
-      <section className="px-4 py-24">
-        <div className="mx-auto max-w-4xl">
-          <div className="mb-16 text-center">
-            <h2 className="mb-3 text-3xl font-bold text-gray-900">Transparent prissättning</h2>
-            <p className="text-gray-500">Inga dolda kostnader – du betalar bara för resultat</p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            {[
-              {
-                title: 'B2C-reklam',
-                subtitle: 'Reklam till privatpersoner',
-                color: 'border-green-200 bg-green-50',
-                items: [
-                  { label: 'Favorit- och intressereklam', price: '3 kr/läsning' },
-                  { label: 'Generell reklam', price: '1 kr/läsning' },
-                ],
-              },
-              {
-                title: 'B2B-reklam',
-                subtitle: 'Reklam till företag',
-                color: 'border-purple-200 bg-purple-50',
-                items: [
-                  { label: 'Favorit- och intressereklam', price: '5 kr/läsning' },
-                  { label: 'Generell reklam', price: '3 kr/läsning' },
-                ],
-              },
-            ].map(({ title, subtitle, color, items }) => (
-              <div key={title} className={`rounded-2xl border-2 p-8 ${color}`}>
-                <h3 className="mb-1 text-xl font-bold text-gray-900">{title}</h3>
-                <p className="mb-6 text-sm text-gray-500">{subtitle}</p>
-                <div className="space-y-3">
-                  {items.map(({ label, price }) => (
-                    <div key={label} className="flex items-center justify-between rounded-lg bg-white px-4 py-3 shadow-sm">
-                      <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Check className="h-4 w-4 text-green-500" />
-                        {label}
-                      </div>
-                      <span className="font-bold text-gray-900">{price}</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-4 text-xs text-gray-400">* Max en debitering per användare och annons</p>
               </div>
             ))}
           </div>

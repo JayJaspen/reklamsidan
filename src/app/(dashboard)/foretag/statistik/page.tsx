@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { BarChart3, Download, Users, TrendingUp } from 'lucide-react'
+import { BarChart3, Download, Users, TrendingUp, Check } from 'lucide-react'
 
 type Ad = {
   id: string
@@ -179,6 +179,51 @@ export default function Statistics() {
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-6">
           <BarChart3 className="h-6 w-6 text-blue-600" /> Statistik
         </h1>
+      </div>
+
+      {/* Pricing */}
+      <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6">
+        <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-gray-500">Prislista</h2>
+        <p className="mb-5 text-xs text-gray-400">Du debiteras per unik läsning. Max en debitering per användare och annons.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[
+            {
+              title: 'B2C-reklam',
+              subtitle: 'Reklam till privatpersoner',
+              color: 'border-green-200 bg-white',
+              accent: 'text-green-700',
+              items: [
+                { label: 'Favorit- & intressereklam', price: '3 kr/läsning' },
+                { label: 'Generell reklam', price: '1 kr/läsning' },
+              ],
+            },
+            {
+              title: 'B2B-reklam',
+              subtitle: 'Reklam till mottagarföretag',
+              color: 'border-purple-200 bg-white',
+              accent: 'text-purple-700',
+              items: [
+                { label: 'Favorit- & intressereklam', price: '5 kr/läsning' },
+                { label: 'Generell reklam', price: '3 kr/läsning' },
+              ],
+            },
+          ].map(({ title, subtitle, color, accent, items }) => (
+            <div key={title} className={`rounded-xl border p-5 ${color}`}>
+              <p className={`mb-0.5 font-semibold ${accent}`}>{title}</p>
+              <p className="mb-4 text-xs text-gray-400">{subtitle}</p>
+              <div className="space-y-2">
+                {items.map(({ label, price }) => (
+                  <div key={label} className="flex items-center justify-between text-sm">
+                    <span className="flex items-center gap-1.5 text-gray-600">
+                      <Check className="h-3.5 w-3.5 text-green-500" /> {label}
+                    </span>
+                    <span className="font-bold text-gray-900">{price}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Summary cards */}
