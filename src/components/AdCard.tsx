@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Bookmark, Trash2, X, Download } from 'lucide-react'
+import { Bookmark, Trash2, X, Download, Printer, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
 import { format } from 'date-fns'
 import { sv } from 'date-fns/locale'
 
@@ -29,6 +29,7 @@ export default function AdCard({ ad, userId, tabSource, onDiscard }: Props) {
   const supabase = createClient()
   const [open, setOpen]   = useState(false)
   const [saved, setSaved] = useState(false)
+  const [zoom, setZoom]   = useState(1)
 
   async function markRead() {
     await supabase.from('ad_reads').upsert({
@@ -38,7 +39,13 @@ export default function AdCard({ ad, userId, tabSource, onDiscard }: Props) {
 
   async function handleOpen() {
     setOpen(true)
+    setZoom(1)
     await markRead()
+  }
+
+  function handlePrint() {
+    const win = window.open(ad.file_url, '_blank')
+    win?.addEventListener('load', () => win.print())
   }
 
   async function handleSave() {
@@ -107,6 +114,38 @@ export default function AdCard({ ad, userId, tabSource, onDiscard }: Props) {
               </button>
             </div>
 
+            {/* Zoom controls (ej för video) */}
+            {ad.file_type !== 'mp4' && (
+              <div className="flex items-center gap-2 border-b border-gray-100 px-6 py-2 bg-gray-50">
+                <button
+                  onClick={() => setZoom(z => Math.max(0.5, +(z - 0.25).toFixed(2)))}
+                  className="rounded p-1.5 text-gray-500 hover:bg-gray-200 disabled:opacity-40"
+                  disabled={zoom <= 0.5}
+                  title="Zooma ut"
+                >
+                  <ZoomOut className="h-4 w-4" />
+                </button>
+                <span className="min-w-[3rem] text-center text-xs font-medium text-gray-600">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  onClick={() => setZoom(z => Math.min(3, +(z + 0.25).toFixed(2)))}
+                  className="rounded p-1.5 text-gray-500 hover:bg-gray-200 disabled:opacity-40"
+                  disabled={zoom >= 3}
+                  title="Zooma in"
+                >
+                  <ZoomIn className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setZoom(1)}
+                  className="rounded p-1.5 text-gray-400 hover:bg-gray-200"
+                  title="Återställ zoom"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Content */}
             <div className="flex-1 overflow-auto p-6">
               {ad.file_type === 'mp4' ? (
@@ -114,10 +153,14 @@ export default function AdCard({ ad, userId, tabSource, onDiscard }: Props) {
                   <source src={ad.file_url} type="video/mp4" />
                 </video>
               ) : ad.file_type === 'pdf' ? (
-                <iframe src={ad.file_url} className="h-96 w-full rounded-lg border" title={ad.name} />
+                <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', transition: 'transform 0.15s' }}>
+                  <iframe src={ad.file_url} className="h-[600px] w-full rounded-lg border" title={ad.name} />
+                </div>
               ) : (
-                <Image src={ad.file_url} alt={ad.name} width={800} height={600}
-                  className="w-full rounded-lg object-contain" />
+                <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', transition: 'transform 0.15s' }}>
+                  <Image src={ad.file_url} alt={ad.name} width={800} height={600}
+                    className="w-full rounded-lg object-contain" />
+                </div>
               )}
             </div>
 
@@ -127,6 +170,9 @@ export default function AdCard({ ad, userId, tabSource, onDiscard }: Props) {
                 className="btn-primary flex-1 gap-2 text-sm">
                 <Bookmark className="h-4 w-4" />
                 {saved ? 'Sparad' : 'Spara'}
+              </button>
+              <button onClick={handlePrint} className="btn-secondary gap-2 text-sm">
+                <Printer className="h-4 w-4" /> Skriv ut
               </button>
               <button onClick={handleDownload} className="btn-secondary gap-2 text-sm">
                 <Download className="h-4 w-4" /> Ladda ner

@@ -157,11 +157,15 @@ export default function B2BFavoriter() {
   async function toggleFollow(companyId: string) {
     if (!userId) return
     if (followedIds.has(companyId)) {
-      await supabase.from('user_favorites').delete()
+      const { error } = await supabase.from('user_favorites').delete()
         .eq('user_id', userId).eq('company_id', companyId)
+      if (error) { console.error('Unfollow error:', error); return }
       setFavorites(f => f.filter(c => c.id !== companyId))
     } else {
-      await supabase.from('user_favorites').insert({ user_id: userId, company_id: companyId })
+      const { error: insertErr } = await supabase
+        .from('user_favorites')
+        .insert({ user_id: userId, company_id: companyId })
+      if (insertErr) { console.error('Follow error:', insertErr); return }
       const { data } = await supabase
         .from('companies')
         .select('id, public_name, logo_url, company_description, website, counties')

@@ -1,7 +1,33 @@
+'use client'
+
 import Link from 'next/link'
-import { Megaphone, Building2, Users, Star, Filter, Globe, ChevronRight, TrendingUp, Target, Shield } from 'lucide-react'
+import { useState } from 'react'
+import { Megaphone, Building2, Users, Star, Filter, Globe, ChevronRight, TrendingUp, Target, Shield, Mail, Send, CheckCircle } from 'lucide-react'
 
 export default function LandingPage() {
+  const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' })
+  const [contactState, setContactState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  async function handleContact(e: React.FormEvent) {
+    e.preventDefault()
+    setContactState('sending')
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contactForm),
+      })
+      if (res.ok) {
+        setContactState('sent')
+        setContactForm({ name: '', email: '', message: '' })
+      } else {
+        setContactState('error')
+      }
+    } catch {
+      setContactState('error')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white">
 
@@ -14,7 +40,10 @@ export default function LandingPage() {
             </div>
             <span className="text-lg font-bold text-gray-900 tracking-tight">Reklamsidan</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <a href="#kontakta-oss" className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900 transition">
+              Kontakta oss
+            </a>
             <Link href="/login" className="btn-secondary text-sm px-4 py-2">
               Logga in
             </Link>
@@ -173,6 +202,82 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Kontakta oss ── */}
+      <section id="kontakta-oss" className="px-4 py-24 bg-white">
+        <div className="mx-auto max-w-2xl">
+          <div className="mb-10 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary-50">
+              <Mail className="h-6 w-6 text-primary-600" />
+            </div>
+            <h2 className="mb-2 text-3xl font-bold text-gray-900">Kontakta oss</h2>
+            <p className="text-gray-500">Har du frågor eller vill veta mer? Vi svarar så snart vi kan.</p>
+          </div>
+
+          {contactState === 'sent' ? (
+            <div className="flex flex-col items-center gap-4 rounded-2xl border border-green-200 bg-green-50 py-16 text-center">
+              <CheckCircle className="h-12 w-12 text-green-500" />
+              <h3 className="text-lg font-semibold text-gray-900">Meddelandet är skickat!</h3>
+              <p className="text-sm text-gray-500">Vi återkommer till dig så snart som möjligt.</p>
+              <button
+                onClick={() => setContactState('idle')}
+                className="mt-2 text-sm font-medium text-primary-600 hover:text-primary-700"
+              >
+                Skicka ett till
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleContact} className="card p-8 space-y-5">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Namn</label>
+                <input
+                  type="text"
+                  required
+                  className="input-field"
+                  placeholder="Ditt namn"
+                  value={contactForm.name}
+                  onChange={e => setContactForm(f => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">E-postadress</label>
+                <input
+                  type="email"
+                  required
+                  className="input-field"
+                  placeholder="din@epost.se"
+                  value={contactForm.email}
+                  onChange={e => setContactForm(f => ({ ...f, email: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Meddelande</label>
+                <textarea
+                  required
+                  rows={5}
+                  className="input-field resize-none"
+                  placeholder="Skriv ditt meddelande här..."
+                  value={contactForm.message}
+                  onChange={e => setContactForm(f => ({ ...f, message: e.target.value }))}
+                />
+              </div>
+
+              {contactState === 'error' && (
+                <p className="text-sm text-red-600">Något gick fel. Försök igen eller maila oss direkt på info@reklamsidan.se.</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={contactState === 'sending'}
+                className="btn-primary w-full gap-2 py-3"
+              >
+                <Send className="h-4 w-4" />
+                {contactState === 'sending' ? 'Skickar...' : 'Skicka meddelande'}
+              </button>
+            </form>
+          )}
+        </div>
+      </section>
+
       {/* ── Footer ── */}
       <footer className="border-t border-gray-100 bg-white px-4 py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
@@ -186,6 +291,7 @@ export default function LandingPage() {
           <div className="flex gap-4 text-sm text-gray-500">
             <Link href="/login" className="hover:text-gray-700">Logga in</Link>
             <Link href="/register" className="hover:text-gray-700">Registrera</Link>
+            <a href="#kontakta-oss" className="hover:text-gray-700">Kontakta oss</a>
           </div>
         </div>
       </footer>

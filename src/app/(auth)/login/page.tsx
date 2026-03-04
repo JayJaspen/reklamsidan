@@ -38,8 +38,8 @@ function LoginForm() {
 
     const dashMap: Record<string, string> = {
       admin:   '/admin/anvandare',
-      b2c:     '/b2c/favoriter',
-      b2b:     '/b2b/favoriter',
+      b2c:     '/b2c/favoritreklam',
+      b2b:     '/b2b/favoritreklam',
       company: '/foretag/statistik',
     }
 

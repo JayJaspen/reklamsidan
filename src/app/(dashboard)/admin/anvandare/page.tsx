@@ -97,28 +97,45 @@ export default function AdminAnvandare() {
       <div className="card mb-6 p-6">
         <h2 className="mb-4 text-sm font-semibold text-gray-700 uppercase tracking-wide">Filtrering</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-600">Kön</label>
-            <select className="input-field" value={filter.gender ?? ''}
-              onChange={e => setFilter(f => ({ ...f, gender: e.target.value }))}>
-              <option value="">Alla kön</option>
-              <option value="man">Man</option>
-              <option value="kvinna">Kvinna</option>
-              <option value="annat">Annat</option>
-            </select>
-          </div>
-
+          {/* 1. Typ av användare */}
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-600">Typ av användare</label>
             <select className="input-field" value={filter.userType}
-              onChange={e => setFilter(f => ({ ...f, userType: e.target.value }))}>
+              onChange={e => setFilter(f => ({ ...f, userType: e.target.value, gender: '', ageGroup: '' }))}>
               <option value="all">Alla</option>
               <option value="b2c">B2C – Privatpersoner</option>
               <option value="b2b">B2B – Företag</option>
             </select>
           </div>
 
-          {filter.userType !== 'b2b' && (
+          {/* 2. Län */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-600">Län</label>
+            <select className="input-field" value={filter.county}
+              onChange={e => setFilter(f => ({ ...f, county: e.target.value }))}>
+              <option value="">Alla län</option>
+              {SWEDISH_COUNTIES.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 3. Kön – visas endast vid B2C */}
+          {filter.userType === 'b2c' && (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-600">Kön</label>
+              <select className="input-field" value={filter.gender ?? ''}
+                onChange={e => setFilter(f => ({ ...f, gender: e.target.value }))}>
+                <option value="">Alla kön</option>
+                <option value="man">Man</option>
+                <option value="kvinna">Kvinna</option>
+                <option value="annat">Annat</option>
+              </select>
+            </div>
+          )}
+
+          {/* 4. Åldersgrupp – visas endast vid B2C */}
+          {filter.userType === 'b2c' && (
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-600">Åldersgrupp</label>
               <select className="input-field" value={filter.ageGroup}
@@ -130,17 +147,6 @@ export default function AdminAnvandare() {
               </select>
             </div>
           )}
-
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-600">Län</label>
-            <select className="input-field" value={filter.county}
-              onChange={e => setFilter(f => ({ ...f, county: e.target.value }))}>
-              <option value="">Alla län</option>
-              {SWEDISH_COUNTIES.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
 
           <div className="flex items-end">
             <button onClick={handleSearch} disabled={loading}

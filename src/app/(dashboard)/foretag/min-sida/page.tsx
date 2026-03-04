@@ -106,7 +106,10 @@ export default function ForetagMinSida() {
 
     try {
       const ext = file.name.split('.').pop()
-      const path = `logos/${userId}.${ext}`
+      // Unikt filnamn per uppladdning för att undvika CDN-cache-problem
+      const timestamp = Date.now()
+      const path = `logos/${userId}_${timestamp}.${ext}`
+
       const { error: uploadError } = await supabase.storage
         .from('company-assets')
         .upload(path, file, { upsert: true })
@@ -114,7 +117,19 @@ export default function ForetagMinSida() {
       if (uploadError) throw uploadError
 
       const { data } = supabase.storage.from('company-assets').getPublicUrl(path)
-      setForm(f => ({ ...f, logoUrl: data.publicUrl }))
+      const newLogoUrl = data.publicUrl
+
+      // Spara direkt till databasen så att URL:en inte förloras
+      const { error: dbError } = await supabase
+        .from('companies')
+        .update({ logo_url: newLogoUrl })
+        .eq('id', userId)
+
+      if (dbError) throw dbError
+
+      setForm(f => ({ ...f, logoUrl: newLogoUrl }))
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
     } catch (error) {
       console.error('Error uploading logo:', error)
       alert(`Fel vid uppladdning av logga: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
