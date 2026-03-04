@@ -40,8 +40,8 @@ export default function AdminAnvandare() {
       .from('user_profiles')
       .select(`
         id, user_type,
-        users_b2c(first_name, last_name, birth_year, gender, counties(name)),
-        users_b2b(company_name, org_number, counties(name))
+        users_b2c(first_name, last_name, birth_year, gender, county_id),
+        users_b2b(company_name, org_number, county_id)
       `)
       .neq('user_type', 'admin')
       .neq('user_type', 'company')
@@ -59,7 +59,8 @@ export default function AdminAnvandare() {
         last_name:    u.users_b2c?.last_name,
         birth_year:   u.users_b2c?.birth_year,
         gender:       u.users_b2c?.gender,
-        county:       u.users_b2c?.counties?.name ?? u.users_b2b?.counties?.name,
+        county:       (u.users_b2c?.county_id ? SWEDISH_COUNTIES[u.users_b2c.county_id - 1] : null)
+                      ?? (u.users_b2b?.county_id ? SWEDISH_COUNTIES[u.users_b2b.county_id - 1] : null),
         company_name: u.users_b2b?.company_name,
         org_number:   u.users_b2b?.org_number,
       }))

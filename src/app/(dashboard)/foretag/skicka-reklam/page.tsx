@@ -117,12 +117,13 @@ export default function SkickaReklam() {
 
     try {
       // Upload file to storage
-      const fileName = `${Date.now()}-${file.name}`
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const ext = file.name.split('.').pop()
+      const fileName = `${userId}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
         .from('ads')
-        .upload(fileName, file)
+        .upload(fileName, file, { upsert: true })
 
-      if (uploadError) throw uploadError
+      if (uploadError) throw new Error(`Uppladdning misslyckades: ${uploadError.message}`)
 
       const fileUrl = supabase.storage.from('ads').getPublicUrl(fileName).data.publicUrl
 
@@ -133,7 +134,7 @@ export default function SkickaReklam() {
           company_id: userId,
           name: adName,
           file_url: fileUrl,
-          file_type: file.type.split('/')[1],
+          file_type: ext,
           ad_type: targeting.type,
           valid_from: validFrom,
           valid_to: validTo,
@@ -141,7 +142,7 @@ export default function SkickaReklam() {
         .select()
         .single()
 
-      if (adError) throw adError
+      if (adError) throw new Error(`Databasfel: ${adError.message}`)
 
       // Add targeting data
       if (targeting.type === 'b2c') {
@@ -198,7 +199,7 @@ export default function SkickaReklam() {
       setTimeout(() => setSubmitted(false), 3000)
     } catch (error) {
       console.error('Error:', error)
-      alert('Fel vid skapande av annons')
+      alert(`Fel vid skapande av annons: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
     } finally {
       setUploading(false)
     }

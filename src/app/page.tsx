@@ -47,19 +47,12 @@ export default function LandingPage() {
 
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link
-              href="/register/b2c"
+              href="/register"
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-white px-8 py-4 font-bold text-primary-700 shadow-lg transition hover:bg-primary-50 sm:w-auto"
             >
               <Users className="h-5 w-5" />
               Kom igång gratis
               <ChevronRight className="h-4 w-4" />
-            </Link>
-            <Link
-              href="/register/b2b"
-              className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-white/25 bg-white/10 px-8 py-4 font-bold text-white backdrop-blur transition hover:bg-white/20 sm:w-auto"
-            >
-              <Building2 className="h-5 w-5" />
-              Jag är ett mottagarföretag
             </Link>
           </div>
 

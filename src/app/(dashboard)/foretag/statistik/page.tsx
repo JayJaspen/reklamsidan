@@ -67,28 +67,27 @@ export default function Statistics() {
         }
       }
 
-      // Fetch follower stats
+      // Fetch follower stats – hämta alla user_ids, sedan profiler i en query
       const { data: favoriteData } = await supabase
         .from('user_favorites')
         .select('user_id')
         .eq('company_id', user.id)
 
-      const uniqueB2CFollowers = new Set()
-      const uniqueB2BFollowers = new Set()
+      const followerIds = (favoriteData ?? []).map(f => f.user_id)
+      const uniqueB2CFollowers = new Set<string>()
+      const uniqueB2BFollowers = new Set<string>()
 
-      if (favoriteData && favoriteData.length > 0) {
-        for (const fav of favoriteData) {
-          const { data: b2c } = await supabase
-            .from('users_b2c')
-            .select('id')
-            .eq('id', fav.user_id)
-            .single()
+      if (followerIds.length > 0) {
+        const { data: profileData } = await supabase
+          .from('user_profiles')
+          .select('id, user_type')
+          .in('id', followerIds)
 
-          if (b2c) {
-            uniqueB2CFollowers.add(fav.user_id)
-          } else {
-            uniqueB2BFollowers.add(fav.user_id)
-          }
+        if (profileData) {
+          profileData.forEach(p => {
+            if (p.user_type === 'b2c') uniqueB2CFollowers.add(p.id)
+            else if (p.user_type === 'b2b') uniqueB2BFollowers.add(p.id)
+          })
         }
       }
 
@@ -300,7 +299,7 @@ export default function Statistics() {
 
       {/* Ad selection and reader stats */}
       <div className="card p-6">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Annonsläsning</h2>
+        <h2 className="mb-4 text-lg font-semibold text-gray-900">Annonshistorik</h2>
         <div className="mb-6">
           <label className="mb-2 block text-sm font-medium text-gray-600">Välj annons</label>
           <select

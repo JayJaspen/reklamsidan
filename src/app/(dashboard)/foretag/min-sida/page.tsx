@@ -117,10 +117,16 @@ export default function ForetagMinSida() {
       setForm(f => ({ ...f, logoUrl: data.publicUrl }))
     } catch (error) {
       console.error('Error uploading logo:', error)
-      alert('Fel vid uppladdning av logga')
+      alert(`Fel vid uppladdning av logga: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
     } finally {
       setSaving(false)
     }
+  }
+
+  function normalizeUrl(url: string): string {
+    if (!url) return url
+    if (/^https?:\/\//i.test(url)) return url
+    return `https://${url}`
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -135,7 +141,7 @@ export default function ForetagMinSida() {
         contact_person: form.contactPerson,
         contact_email: form.contactEmail,
         contact_phone: form.contactPhone,
-        website: form.website,
+        website: normalizeUrl(form.website),
         company_description: form.description,
         counties: form.counties,
         sends_b2b: form.sendsB2B,
@@ -251,8 +257,14 @@ export default function ForetagMinSida() {
 
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-600">Webbplats</label>
-            <input type="url" className="input-field" value={form.website}
-              onChange={e => setForm(f => ({ ...f, website: e.target.value }))} />
+            <input
+              type="text"
+              className="input-field"
+              placeholder="www.domän.com"
+              value={form.website}
+              onChange={e => setForm(f => ({ ...f, website: e.target.value }))}
+            />
+            <p className="mt-1 text-xs text-gray-400">Du behöver inte skriva http:// – det läggs till automatiskt</p>
           </div>
 
           <div>
