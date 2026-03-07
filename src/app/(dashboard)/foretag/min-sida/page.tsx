@@ -42,12 +42,14 @@ export default function ForetagMinSida() {
       if (!user) return
       setUserId(user.id)
 
-      const [{ data: company }, { data: catsB2C }, { data: catsB2B }, { data: compCatsB2C }, { data: compCatsB2B }] = await Promise.all([
+      const [{ data: company }, { data: catsB2C }, { data: catsB2B }, { data: compCatsB2C }, { data: compCatsB2B }, { data: compCounties }] = await Promise.all([
         supabase.from('companies').select('*').eq('id', user.id).single(),
         supabase.from('categories_b2c').select('id,name,parent_id').eq('is_active', true).order('sort_order'),
         supabase.from('categories_b2b').select('id,name,parent_id').eq('is_active', true).order('sort_order'),
         supabase.from('company_categories_b2c').select('category_id').eq('company_id', user.id),
         supabase.from('company_categories_b2b').select('category_id').eq('company_id', user.id),
+        // Counties are stored in company_counties join table, not on the companies row
+        supabase.from('company_counties').select('county_id').eq('company_id', user.id),
       ])
 
       if (company) {
@@ -60,7 +62,10 @@ export default function ForetagMinSida() {
           contactPhone: company.contact_phone,
           website: company.website ?? '',
           description: company.company_description ?? '',
-          counties: company.counties ?? [],
+          // Load counties from company_counties join table (companies.counties column doesn't exist)
+          counties: (compCounties ?? [])
+            .map(r => SWEDISH_COUNTIES[r.county_id - 1])
+            .filter(Boolean) as string[],
           categoriesB2C: (compCatsB2C ?? []).map(c => c.category_id),
           sendsB2B: company.sends_b2b,
           categoriesB2B: (compCatsB2B ?? []).map(c => c.category_id),
@@ -150,6 +155,7 @@ export default function ForetagMinSida() {
     setSaving(true)
 
     try {
+      // Note: 'counties' column does NOT exist on companies – save via company_counties instead
       const { error: updateError } = await supabase.from('companies').update({
         public_name: form.publicName,
         logo_url: form.logoUrl,
@@ -158,7 +164,6 @@ export default function ForetagMinSida() {
         contact_phone: form.contactPhone,
         website: normalizeUrl(form.website),
         company_description: form.description,
-        counties: form.counties.length > 0 ? form.counties : [],
         sends_b2b: form.sendsB2B,
         billing_method: form.billingMethod,
         billing_address: form.billingAddress,
@@ -167,6 +172,21 @@ export default function ForetagMinSida() {
         billing_email: form.billingEmail,
       }).eq('id', userId)
       if (updateError) throw updateError
+
+      // Save counties via company_counties join table (DELETE + INSERT)
+      await supabase.from('company_counties').delete().eq('company_id', userId)
+      if (form.counties.length > 0) {
+        const countyInserts = form.counties
+          .map(name => {
+            const idx = (SWEDISH_COUNTIES as readonly string[]).indexOf(name)
+            return idx >= 0 ? { company_id: userId, county_id: idx + 1 } : null
+          })
+          .filter(Boolean) as { company_id: string; county_id: number }[]
+        if (countyInserts.length > 0) {
+          const { error: countyErr } = await supabase.from('company_counties').insert(countyInserts)
+          if (countyErr) throw countyErr
+        }
+      }
 
       await supabase.from('company_categories_b2c').delete().eq('company_id', userId)
       if (form.categoriesB2C.length > 0) {

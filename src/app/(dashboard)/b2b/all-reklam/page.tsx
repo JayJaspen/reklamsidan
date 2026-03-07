@@ -37,6 +37,25 @@ export default function B2BAllReklam() {
     setSelectedCompany(null)
     setAds([])
 
+    // County filter: look up company_ids via company_counties join table
+    // (companies.counties column doesn't exist – counties stored in company_counties)
+    let countyCompanyIds: string[] | null = null
+    if (filter.county) {
+      const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(filter.county)
+      if (countyIdx >= 0) {
+        const { data: countyLinks } = await supabase
+          .from('company_counties')
+          .select('company_id')
+          .eq('county_id', countyIdx + 1)
+        countyCompanyIds = (countyLinks ?? []).map((r: any) => r.company_id as string)
+        if (countyCompanyIds.length === 0) {
+          setCompanies([])
+          setLoading(false)
+          return
+        }
+      }
+    }
+
     let query = supabase
       .from('companies')
       .select('id, public_name, logo_url')
@@ -47,8 +66,8 @@ export default function B2BAllReklam() {
       query = query.ilike('public_name', `%${filter.query}%`)
     }
 
-    if (filter.county) {
-      query = query.contains('counties', [filter.county])
+    if (countyCompanyIds) {
+      query = query.in('id', countyCompanyIds)
     }
 
     const { data } = await query.order('public_name')

@@ -11,7 +11,6 @@ type Company = {
   logo_url: string | null
   company_description: string | null
   website: string | null
-  counties: string[] | null
   categories: string[]
 }
 
@@ -52,9 +51,11 @@ export default function B2BFavoriter() {
     if (!data || data.length === 0) { setFavorites([]); return }
 
     const ids = data.map(f => f.company_id)
+    // Note: do NOT select 'counties' – that column doesn't exist on companies.
+    // Counties are stored in the company_counties join table.
     const { data: companies } = await supabase
       .from('companies')
-      .select('id, public_name, logo_url, company_description, website, counties')
+      .select('id, public_name, logo_url, company_description, website')
       .in('id', ids)
       .eq('is_active', true)
       .eq('sends_b2b', true)
@@ -119,15 +120,35 @@ export default function B2BFavoriter() {
       }
     }
 
+    // Om län valt – hämta matchande company_ids via company_counties-tabellen
+    let countyCompanyIds: string[] | null = null
+    if (searchCounty) {
+      const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(searchCounty)
+      if (countyIdx >= 0) {
+        const { data: countyLinks } = await supabase
+          .from('company_counties')
+          .select('company_id')
+          .eq('county_id', countyIdx + 1)
+        countyCompanyIds = (countyLinks ?? []).map((r: any) => r.company_id as string)
+        if (countyCompanyIds.length === 0) {
+          setSearchResults([])
+          setSearching(false)
+          return
+        }
+      }
+    }
+
+    // Note: do NOT select 'counties' – column doesn't exist on companies table
     let q = supabase
       .from('companies')
-      .select('id, public_name, logo_url, company_description, website, counties')
+      .select('id, public_name, logo_url, company_description, website')
       .eq('is_active', true)
       .eq('sends_b2b', true)  // Visa bara B2B-aktiva företag
       .order('public_name')
 
     if (searchName) q = q.ilike('public_name', `%${searchName}%`)
     if (companyIds) q = q.in('id', companyIds)
+    if (countyCompanyIds) q = q.in('id', countyCompanyIds)
 
     const { data: companies } = await q
 
@@ -137,18 +158,7 @@ export default function B2BFavoriter() {
       return
     }
 
-    // Filtrera på län (client-side)
-    const filtered = searchCounty
-      ? companies.filter(c => (c.counties ?? []).includes(searchCounty))
-      : companies
-
-    if (filtered.length === 0) {
-      setSearchResults([])
-      setSearching(false)
-      return
-    }
-
-    const ids = filtered.map(c => c.id)
+    const ids = companies.map(c => c.id)
     const { data: catLinks } = await supabase
       .from('company_categories_b2b')
       .select('company_id, categories_b2b(name)')
@@ -160,7 +170,7 @@ export default function B2BFavoriter() {
       if (row.categories_b2b?.name) catMap[row.company_id].push(row.categories_b2b.name)
     })
 
-    setSearchResults(filtered.map(c => ({ ...c, categories: catMap[c.id] ?? [] })))
+    setSearchResults(companies.map(c => ({ ...c, categories: catMap[c.id] ?? [] })))
     setSearching(false)
   }
 
@@ -176,9 +186,10 @@ export default function B2BFavoriter() {
         .from('user_favorites')
         .insert({ user_id: userId, company_id: companyId })
       if (insertErr) { console.error('Follow error:', insertErr); return }
+      // Note: no 'counties' column on companies table
       const { data } = await supabase
         .from('companies')
-        .select('id, public_name, logo_url, company_description, website, counties')
+        .select('id, public_name, logo_url, company_description, website')
         .eq('id', companyId).single()
       if (data) setFavorites(f => [...f, { ...data, categories: [] }])
     }
