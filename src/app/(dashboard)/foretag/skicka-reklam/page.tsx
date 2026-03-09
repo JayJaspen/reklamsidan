@@ -140,11 +140,28 @@ export default function SkickaReklam() {
       return
     }
 
+    // Filvalidering – kontrollera storlek och MIME-typ
+    const MAX_SIZE_MB = 20
+    const ALLOWED_MIME_TYPES = [
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'video/mp4',
+    ]
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      alert(`Filen är för stor. Max ${MAX_SIZE_MB} MB tillåtet.`)
+      return
+    }
+    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+      alert('Otillåten filtyp. Tillåtna format: PDF, JPG, PNG, MP4.')
+      return
+    }
+
     setUploading(true)
 
     try {
       // Upload file to storage
-      const ext = file.name.split('.').pop()
+      const ext = file.name.split('.').pop()?.toLowerCase()
       const fileName = `${userId}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('ads')
