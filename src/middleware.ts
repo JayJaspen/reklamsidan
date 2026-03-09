@@ -47,6 +47,35 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
 
+  // ── Sessionstimeout-kontroll ───────────────────────────────────
+  // Kontrollera om session_expires_at-cookien har gått ut.
+  // Cookien sätts vid inloggning: 5h (ej ihågkommen) eller 30d (ihågkommen).
+  if (user) {
+    const expiresRaw = request.cookies.get('session_expires_at')?.value
+    if (expiresRaw) {
+      const expiresAt = parseInt(expiresRaw, 10)
+      if (!isNaN(expiresAt) && Date.now() > expiresAt) {
+        // Session har gått ut – logga ut lokalt
+        await supabase.auth.signOut({ scope: 'local' })
+
+        const loginUrl = request.nextUrl.clone()
+        loginUrl.pathname = '/login'
+        loginUrl.search = ''
+        loginUrl.searchParams.set('expired', '1')
+
+        // Bygg redirect-svar och kopiera bortrensade auth-cookies
+        const expiredResponse = NextResponse.redirect(loginUrl)
+        supabaseResponse.cookies.getAll().forEach(c => {
+          expiredResponse.cookies.set(c.name, c.value, c as any)
+        })
+        // Ta bort vår egen utgångna cookie
+        expiredResponse.cookies.set('session_expires_at', '', { maxAge: 0, path: '/' })
+        return expiredResponse
+      }
+    }
+  }
+  // ─────────────────────────────────────────────────────────────
+
   // Autentiserade sidor – vidarebefordra till login om ej inloggad
   const protectedPrefix = Object.keys(PROTECTED_PREFIXES).find(p =>
     pathname.startsWith(p)

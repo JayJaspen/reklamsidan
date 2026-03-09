@@ -6,14 +6,29 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
+// Sätter en cookie som middleware kontrollerar för att tvinga utloggning
+function setSessionExpiry(rememberMe: boolean) {
+  const MS = rememberMe
+    ? 30 * 24 * 60 * 60 * 1000   // 30 dagar
+    : 5  * 60 * 60 * 1000         // 5 timmar
+  const expiresAt  = Date.now() + MS
+  const maxAgeSec  = Math.floor(MS / 1000)
+  const expiresUTC = new Date(expiresAt).toUTCString()
+  document.cookie =
+    `session_expires_at=${expiresAt}; path=/; max-age=${maxAgeSec}; expires=${expiresUTC}; SameSite=Lax`
+}
+
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail]       = useState('')
-  const [password, setPassword] = useState('')
-  const [showPw, setShowPw]     = useState(false)
-  const [loading, setLoading]   = useState(false)
-  const [error, setError]       = useState<string | null>(null)
+  const [email, setEmail]         = useState('')
+  const [password, setPassword]   = useState('')
+  const [showPw, setShowPw]       = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState<string | null>(null)
+
+  const sessionExpired = searchParams.get('expired') === '1'
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -28,6 +43,9 @@ function LoginForm() {
       setLoading(false)
       return
     }
+
+    // Sätt sessionstimer baserat på "Håll mig inloggad"-valet
+    setSessionExpiry(rememberMe)
 
     // Hämta user_type för omdirigering
     const { data: profile } = await supabase
@@ -62,6 +80,12 @@ function LoginForm() {
         </div>
       )}
 
+      {sessionExpired && (
+        <div className="mb-5 flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-amber-200">
+          Din session har gått ut. Logga in igen för att fortsätta.
+        </div>
+      )}
+
       <form onSubmit={handleLogin} className="space-y-5">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-gray-700">E-postadress</label>
@@ -91,6 +115,19 @@ function LoginForm() {
             </Link>
           </div>
         </div>
+
+        {/* Håll mig inloggad */}
+        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={e => setRememberMe(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <span className="text-sm text-gray-600">
+            Håll mig inloggad i <span className="font-medium text-gray-800">30 dagar</span>
+          </span>
+        </label>
 
         {error && (
           <div className="flex items-center gap-2 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600 ring-1 ring-red-200">
