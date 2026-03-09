@@ -26,46 +26,47 @@ export default function B2CSparad() {
   const [zoom, setZoom] = useState(1)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
+    async function load() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) { setLoading(false); return }
+        setUserId(user.id)
+        const { data, error } = await supabase
+          .from('saved_ads')
+          .select(`
+            id, ad_id,
+            ads(name, file_url, file_type, valid_to,
+              companies(public_name, logo_url))
+          `)
+          .eq('user_id', user.id)
+          .order('saved_at', { ascending: false })
+        if (error) console.error('Sparad reklam fel:', error)
+        if (data) {
+          setAds(data.map((s: unknown) => {
+            const row = s as {
+              id: string; ad_id: string;
+              ads: { name: string; file_url: string; file_type: string; valid_to: string;
+                companies: { public_name: string; logo_url: string | null } }
+            }
+            return {
+              id: row.id,
+              ad_id: row.ad_id,
+              name: row.ads.name,
+              file_url: row.ads.file_url,
+              file_type: row.ads.file_type,
+              valid_to: row.ads.valid_to,
+              company_name: row.ads.companies.public_name,
+              logo_url: row.ads.companies.logo_url,
+            }
+          }))
+        }
+      } catch (e) {
+        console.error('Sparad reklam oväntat fel:', e)
+      } finally {
         setLoading(false)
-        return
       }
-      setUserId(user.id)
-      supabase
-        .from('saved_ads')
-        .select(`
-          id, ad_id,
-          ads(name, file_url, file_type, valid_to,
-            companies(public_name, logo_url))
-        `)
-        .eq('user_id', user.id)
-        .order('saved_at', { ascending: false })
-        .then(({ data, error }) => {
-          if (error) console.error('Sparad reklam fel:', error)
-          if (data) {
-            setAds(data.map((s: unknown) => {
-              const row = s as {
-                id: string; ad_id: string;
-                ads: { name: string; file_url: string; file_type: string; valid_to: string;
-                  companies: { public_name: string; logo_url: string | null } }
-              }
-              return {
-                id: row.id,
-                ad_id: row.ad_id,
-                name: row.ads.name,
-                file_url: row.ads.file_url,
-                file_type: row.ads.file_type,
-                valid_to: row.ads.valid_to,
-                company_name: row.ads.companies.public_name,
-                logo_url: row.ads.companies.logo_url,
-              }
-            }))
-          }
-          setLoading(false)
-        })
-        .catch(() => setLoading(false))
-    }).catch(() => setLoading(false))
+    }
+    load()
   }, [])
 
   function toggleSelect(id: string) {
