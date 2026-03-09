@@ -52,7 +52,7 @@ async function hkdfExpand(prk: Uint8Array<ArrayBuffer>, info: Uint8Array<ArrayBu
 
 // ── Kryptering av push-payload (RFC 8291, aes128gcm) ──────────
 
-async function encryptPayload(p256dh: string, auth: string, plaintext: string): Promise<Buffer> {
+async function encryptPayload(p256dh: string, auth: string, plaintext: string): Promise<Uint8Array<ArrayBuffer>> {
   const clientPub  = b64url(p256dh) // 65 bytes: 0x04 || x || y
   const authBytes  = b64url(auth)   // 16 bytes
 
@@ -92,7 +92,7 @@ async function encryptPayload(p256dh: string, auth: string, plaintext: string): 
   // 6. RFC 8188-headern: salt(16) || rs(4 BE) || idlen(1) || server_pub || ciphertext
   const rsBytes = new Uint8Array(4)
   new DataView(rsBytes.buffer).setUint32(0, 4096, false)
-  return Buffer.from(concat(salt, rsBytes, new Uint8Array([serverPub.length]), serverPub, ciphertext))
+  return concat(salt, rsBytes, new Uint8Array([serverPub.length]), serverPub, ciphertext)
 }
 
 // ── VAPID JWT (RFC 8292) ────────────────────────────────────────
