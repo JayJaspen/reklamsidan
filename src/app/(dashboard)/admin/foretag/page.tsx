@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Download, Building2, X, Globe, Mail, Phone, MapPin, FileText } from 'lucide-react'
+import { Search, Download, Building2, X, Globe, Mail, Phone, MapPin, ShieldOff, ShieldCheck, AlertTriangle } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
 type CompanyResult = {
@@ -36,6 +36,7 @@ export default function AdminForetag() {
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [selected, setSelected]   = useState<CompanyResult | null>(null)
   const [categories, setCategories] = useState<{ id: number; name: string; parent_id: number | null; type: 'b2b' | 'b2c' }[]>([])
+  const [confirmBlock, setConfirmBlock] = useState<CompanyResult | null>(null)
 
   // Load categories on mount
   useEffect(() => {
@@ -110,6 +111,11 @@ export default function AdminForetag() {
     await supabase.from('companies').update({ is_active: !current }).eq('id', id)
     setResults(r => r.map(c => c.id === id ? { ...c, is_active: !current } : c))
     if (selected?.id === id) setSelected(s => s ? { ...s, is_active: !current } : s)
+    setConfirmBlock(null)
+  }
+
+  function requestBlock(company: CompanyResult) {
+    setConfirmBlock(company)
   }
 
   return (
@@ -223,22 +229,65 @@ export default function AdminForetag() {
                     <td className="px-6 py-4 text-sm text-gray-600">{c.contact_person}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{c.contact_email}</td>
                     <td className="px-6 py-4">
-                      <span className={`rounded-full px-2 py-1 text-xs font-medium ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {c.is_active ? 'Aktiv' : 'Inaktiv'}
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {c.is_active ? <ShieldCheck className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
+                        {c.is_active ? 'Aktiv' : 'Spärrad'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={ev => { ev.stopPropagation(); toggleActive(c.id, c.is_active) }}
-                        className="text-xs text-primary-600 hover:text-primary-800 font-medium"
-                      >
-                        {c.is_active ? 'Inaktivera' : 'Aktivera'}
-                      </button>
+                      {c.is_active ? (
+                        <button
+                          onClick={ev => { ev.stopPropagation(); requestBlock(c) }}
+                          className="text-xs text-red-600 hover:text-red-800 font-medium"
+                        >
+                          Spärra konto
+                        </button>
+                      ) : (
+                        <button
+                          onClick={ev => { ev.stopPropagation(); toggleActive(c.id, c.is_active) }}
+                          className="text-xs text-green-700 hover:text-green-900 font-medium"
+                        >
+                          Häv spärr
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Bekräftelsedialog för spärr */}
+      {confirmBlock && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900">Spärra företagskonto?</h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  <span className="font-medium">{confirmBlock.public_name}</span> kommer inte längre kunna publicera annonser. Du kan häva spärren när som helst.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmBlock(null)}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                Avbryt
+              </button>
+              <button
+                onClick={() => toggleActive(confirmBlock.id, confirmBlock.is_active)}
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+              >
+                <ShieldOff className="h-4 w-4" /> Ja, spärra konto
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -270,17 +319,27 @@ export default function AdminForetag() {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* Status + aktivera */}
+              {/* Status + spärra/häv */}
               <div className="flex items-center gap-3">
-                <span className={`rounded-full px-3 py-1 text-sm font-medium ${selected.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {selected.is_active ? 'Aktiv' : 'Inaktiv'}
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${selected.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                  {selected.is_active ? <ShieldCheck className="h-4 w-4" /> : <ShieldOff className="h-4 w-4" />}
+                  {selected.is_active ? 'Aktiv' : 'Spärrad'}
                 </span>
-                <button
-                  onClick={() => toggleActive(selected.id, selected.is_active)}
-                  className="btn-secondary text-sm py-1 px-3"
-                >
-                  {selected.is_active ? 'Inaktivera konto' : 'Aktivera konto'}
-                </button>
+                {selected.is_active ? (
+                  <button
+                    onClick={() => requestBlock(selected)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 transition-colors"
+                  >
+                    <ShieldOff className="h-4 w-4" /> Spärra konto
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => toggleActive(selected.id, selected.is_active)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700 hover:bg-green-100 transition-colors"
+                  >
+                    <ShieldCheck className="h-4 w-4" /> Häv spärr
+                  </button>
+                )}
               </div>
 
               {/* Basinfo */}

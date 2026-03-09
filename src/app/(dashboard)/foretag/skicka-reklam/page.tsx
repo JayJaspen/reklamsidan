@@ -70,66 +70,73 @@ export default function SkickaReklam() {
   }, [targeting.type])
 
   useEffect(() => {
-    calculateAudienceCount()
-  }, [targeting])
+    if (userId) calculateAudienceCount()
+  }, [targeting, userId])
 
   async function calculateAudienceCount() {
+    if (!userId) return
+
+    // Steg 1: Hämta följare av detta företag
+    const { data: followers } = await supabase
+      .from('user_favorites')
+      .select('user_id')
+      .eq('company_id', userId)
+
+    const candidateIds = new Set((followers ?? []).map(f => f.user_id as string))
+
+    // Steg 2: Lägg till användare som följer valda kategorier
+    if (targeting.categories.length > 0) {
+      const userCatTable = targeting.type === 'b2c' ? 'users_b2c_categories' : 'users_b2b_categories'
+      const { data: catUsers } = await supabase
+        .from(userCatTable)
+        .select('user_id')
+        .in('category_id', targeting.categories)
+      ;(catUsers ?? []).forEach(u => candidateIds.add(u.user_id as string))
+    }
+
+    if (candidateIds.size === 0) {
+      setAudienceCount(0)
+      return
+    }
+
+    const ids = [...candidateIds]
+
     if (targeting.type === 'b2c') {
-      // For B2C: gender AND age AND counties
-      let query = supabase.from('users_b2c').select('id', { count: 'exact', head: true })
+      // Steg 3 B2C: filtrera på kön, ålder, län bland kandidaterna
+      let query = supabase
+        .from('users_b2c')
+        .select('id', { count: 'exact', head: true })
+        .in('id', ids)
 
       if (targeting.genders.length > 0) {
         query = query.in('gender', targeting.genders)
       }
-
+      if (targeting.ageGroups.length > 0) {
+        query = query.in('age_group', targeting.ageGroups)
+      }
       if (targeting.counties.length > 0) {
-        query = query.in('county_id', targeting.counties.map(c => {
-          const idx = (SWEDISH_COUNTIES as readonly string[]).indexOf(c)
-          return idx + 1
-        }))
+        query = query.in('county_id', targeting.counties.map(c =>
+          (SWEDISH_COUNTIES as readonly string[]).indexOf(c) + 1
+        ))
       }
 
       const { count } = await query
       setAudienceCount(count ?? 0)
     } else {
-      // For B2B: categories and/or counties
-      if (targeting.categories.length === 0) {
-        // No category filter – count all B2B users (optionally filtered by county)
-        let query = supabase.from('users_b2b').select('id', { count: 'exact', head: true })
-        if (targeting.counties.length > 0) {
-          query = query.in('county_id', targeting.counties.map(c => {
-            const idx = (SWEDISH_COUNTIES as readonly string[]).indexOf(c)
-            return idx + 1
-          }))
-        }
-        const { count } = await query
-        setAudienceCount(count ?? 0)
-        return
+      // Steg 3 B2B: filtrera på län bland kandidaterna
+      let query = supabase
+        .from('users_b2b')
+        .select('id', { count: 'exact', head: true })
+        .in('id', ids)
+
+      if (targeting.counties.length > 0) {
+        query = query.in('county_id', targeting.counties.map(c =>
+          (SWEDISH_COUNTIES as readonly string[]).indexOf(c) + 1
+        ))
       }
 
-      // Categories selected – find matching users via users_b2b_categories
-      const { data: users } = await supabase
-        .from('users_b2b_categories')
-        .select('user_id')
-        .in('category_id', targeting.categories)
-
-      let uniqueUserIds = [...new Set(users?.map(u => u.user_id) ?? [])]
-
-      // Apply county filter if needed
-      if (targeting.counties.length > 0 && uniqueUserIds.length > 0) {
-        const countyIds = targeting.counties.map(c => {
-          const idx = (SWEDISH_COUNTIES as readonly string[]).indexOf(c)
-          return idx + 1
-        })
-        const { data: countyUsers } = await supabase
-          .from('users_b2b')
-          .select('id')
-          .in('id', uniqueUserIds)
-          .in('county_id', countyIds)
-        uniqueUserIds = (countyUsers ?? []).map(u => u.id)
-      }
-
-      setAudienceCount(uniqueUserIds.length)
+      const { count } = await query
+      setAudienceCount(count ?? 0)
     }
   }
 
@@ -580,7 +587,7 @@ export default function SkickaReklam() {
           <div>
             <p className="text-sm font-semibold text-blue-900">Målgrupp</p>
             <p className="text-2xl font-bold text-blue-600">{audienceCount.toLocaleString('sv-SE')}</p>
-            <p className="text-xs text-blue-700">användare matchar dina targetingkriteria</p>
+            <p className="text-xs text-blue-700">följare av ditt företag och/eller intresserade av valda kategorier</p>
           </div>
         </div>
 
