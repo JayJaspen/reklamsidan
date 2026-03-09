@@ -6,36 +6,39 @@ import { createPrivateKey, createSign } from 'node:crypto'
 
 // ── Hjälpfunktioner ────────────────────────────────────────────
 
-function b64url(s: string): Uint8Array {
+function b64url(s: string): Uint8Array<ArrayBuffer> {
   const pad = '='.repeat((4 - s.length % 4) % 4)
-  return new Uint8Array(Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/') + pad, 'base64'))
+  const buf = Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/') + pad, 'base64')
+  const out = new Uint8Array(buf.length)
+  out.set(buf)
+  return out
 }
 
-function concat(...parts: Uint8Array[]): Uint8Array {
+function concat(...parts: Uint8Array[]): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
   let off = 0
   for (const p of parts) { out.set(p, off); off += p.length }
   return out
 }
 
-async function hmacSign(key: CryptoKey, data: Uint8Array): Promise<Uint8Array> {
+async function hmacSign(key: CryptoKey, data: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
   return new Uint8Array(await crypto.subtle.sign('HMAC', key, data))
 }
 
-async function importHmacKey(bytes: Uint8Array): Promise<CryptoKey> {
+async function importHmacKey(bytes: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
   return crypto.subtle.importKey('raw', bytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
 }
 
 // HKDF-Extract: PRK = HMAC-SHA256(salt, IKM)
-async function hkdfExtract(salt: Uint8Array, ikm: Uint8Array): Promise<Uint8Array> {
+async function hkdfExtract(salt: Uint8Array<ArrayBuffer>, ikm: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
   return hmacSign(await importHmacKey(salt), ikm)
 }
 
 // HKDF-Expand: OKM = T(1) || T(2) || ...
-async function hkdfExpand(prk: Uint8Array, info: Uint8Array, length: number): Promise<Uint8Array> {
+async function hkdfExpand(prk: Uint8Array<ArrayBuffer>, info: Uint8Array<ArrayBuffer>, length: number): Promise<Uint8Array<ArrayBuffer>> {
   const key = await importHmacKey(prk)
   const out = new Uint8Array(length)
-  let prev = new Uint8Array(0)
+  let prev: Uint8Array<ArrayBuffer> = new Uint8Array(0)
   let filled = 0
   let i = 1
   while (filled < length) {
@@ -61,7 +64,7 @@ async function encryptPayload(p256dh: string, auth: string, plaintext: string): 
 
   // 2. Importera klientens publika nyckel
   const clientKey = await crypto.subtle.importKey(
-    'raw', clientPub, { name: 'ECDH', namedCurve: 'P-256' }, false, []
+    'raw', clientPub as Uint8Array<ArrayBuffer>, { name: 'ECDH', namedCurve: 'P-256' }, false, []
   )
 
   // 3. ECDH delad hemlighet (IKM)
@@ -80,10 +83,10 @@ async function encryptPayload(p256dh: string, auth: string, plaintext: string): 
   const nonce   = await hkdfExpand(prk2, new TextEncoder().encode('Content-Encoding: nonce\x00'), 12)
 
   // 5. AES-128-GCM kryptering
-  const aesKey = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt'])
+  const aesKey = await crypto.subtle.importKey('raw', cek as Uint8Array<ArrayBuffer>, 'AES-GCM', false, ['encrypt'])
   const padded = concat(new TextEncoder().encode(plaintext), new Uint8Array([2]))
   const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: nonce, tagLength: 128 }, aesKey, padded
+    { name: 'AES-GCM', iv: nonce as Uint8Array<ArrayBuffer>, tagLength: 128 }, aesKey, padded as Uint8Array<ArrayBuffer>
   ))
 
   // 6. RFC 8188-headern: salt(16) || rs(4 BE) || idlen(1) || server_pub || ciphertext
