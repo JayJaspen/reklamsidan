@@ -27,7 +27,10 @@ export default function B2CSparad() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
+      if (!user) {
+        setLoading(false)
+        return
+      }
       setUserId(user.id)
       supabase
         .from('saved_ads')
@@ -38,7 +41,8 @@ export default function B2CSparad() {
         `)
         .eq('user_id', user.id)
         .order('saved_at', { ascending: false })
-        .then(({ data }) => {
+        .then(({ data, error }) => {
+          if (error) console.error('Sparad reklam fel:', error)
           if (data) {
             setAds(data.map((s: unknown) => {
               const row = s as {
@@ -60,7 +64,8 @@ export default function B2CSparad() {
           }
           setLoading(false)
         })
-    })
+        .catch(() => setLoading(false))
+    }).catch(() => setLoading(false))
   }, [])
 
   function toggleSelect(id: string) {

@@ -39,9 +39,9 @@ export default function LandingPage() {
             <Image
               src="/logo.png"
               alt="wecq Reklamsidan"
-              width={64}
-              height={64}
-              className="h-16 w-auto"
+              width={96}
+              height={96}
+              className="h-24 w-auto"
               priority
             />
           </div>
