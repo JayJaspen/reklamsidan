@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { LogOut, Megaphone } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import NotificationPermission from '@/components/NotificationPermission'
 
 interface Tab {
   href: string
@@ -46,7 +47,7 @@ export default function DashboardNav({ tabs, userName }: Props) {
           </Link>
 
           {/* Right side */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {userName && (
               <div className="hidden sm:flex items-center gap-2">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-primary-700 text-xs font-bold">
@@ -55,6 +56,7 @@ export default function DashboardNav({ tabs, userName }: Props) {
                 <span className="text-sm text-gray-600 font-medium">{userName}</span>
               </div>
             )}
+            <NotificationPermission />
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"

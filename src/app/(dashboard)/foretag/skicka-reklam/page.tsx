@@ -234,6 +234,13 @@ export default function SkickaReklam() {
         }
       }
 
+      // Skicka push-notiser till följare och intresserade (fire-and-forget)
+      fetch('/api/push/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adId: adData.id }),
+      }).catch(err => console.warn('Push notify misslyckades:', err))
+
       setSubmittedAdName(adName)
       setSubmitted(true)
       setFile(null)

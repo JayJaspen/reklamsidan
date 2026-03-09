@@ -158,14 +158,16 @@ export default function InstallBanner() {
   return (
     <div
       className={`
-        fixed top-0 left-0 right-0 z-50
+        fixed bottom-0 left-0 right-0 z-50
         transition-all duration-500 ease-out
-        ${visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}
+        ${visible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}
       `}
       role="banner"
       aria-label="Installera app"
     >
-      <div className="bg-white border-b border-gray-200 shadow-lg px-4 py-3 flex items-start gap-3">
+      <div className="bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 py-3 flex items-start gap-3 pb-safe"
+        style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+      >
         {/* Ikon */}
         <img
           src="/icons/icon-72x72.png"
