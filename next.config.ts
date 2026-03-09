@@ -34,6 +34,9 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // pdfjs-dist innehåller Node.js-specifika requires (@napi-rs/canvas etc.)
+  // Markera som extern så att den inte bundlas in i Edge-runtime
+  serverExternalPackages: ['pdfjs-dist'],
   images: {
     remotePatterns: [
       {

@@ -20,6 +20,16 @@ const PROTECTED_PREFIXES: Record<string, UserType> = {
 }
 
 export async function middleware(request: NextRequest) {
+  // Skydda mot att middleware kraschar Edge-runtime vid oväntat fel
+  try {
+    return await runMiddleware(request)
+  } catch (err) {
+    console.error('Middleware error:', err)
+    return NextResponse.next()
+  }
+}
+
+async function runMiddleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -118,10 +128,11 @@ export async function middleware(request: NextRequest) {
   }
 
   return supabaseResponse
-}
+}  // end runMiddleware
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Exkludera statiska filer, Next.js-interna resurser och worker-filer (.mjs/.js i public)
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mjs|ico)$).*)',
   ],
 }
