@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Bookmark, Trash2, X, Download, Printer, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
 import { format } from 'date-fns'
 import { sv } from 'date-fns/locale'
+import PdfViewer from './PdfViewer'
 
 interface Ad {
   id: string
@@ -156,15 +157,7 @@ export default function AdCard({ ad, userId, tabSource, onDiscard }: Props) {
                   <source src={ad.file_url} type="video/mp4" />
                 </video>
               ) : ad.file_type === 'pdf' ? (
-                <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', transition: 'transform 0.15s' }}>
-                  {/* Höjd: 75% av viewport på mobil, fast 600px på desktop */}
-                  <iframe
-                    src={ad.file_url}
-                    className="w-full rounded-lg border"
-                    style={{ height: 'calc(75dvh - 140px)' }}
-                    title={ad.name}
-                  />
-                </div>
+                <PdfViewer url={ad.file_url} zoom={zoom} />
               ) : (
                 <div style={{ transform: `scale(${zoom})`, transformOrigin: 'top center', transition: 'transform 0.15s' }}>
                   <Image src={ad.file_url} alt={ad.name} width={800} height={600}
