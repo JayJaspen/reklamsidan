@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { LogOut, Megaphone } from 'lucide-react'
+import { LogOut } from 'lucide-react'
+import Image from 'next/image'
 import { cn } from '@/lib/utils'
 import NotificationPermission from '@/components/NotificationPermission'
 
@@ -39,11 +40,15 @@ export default function DashboardNav({ tabs, userName }: Props) {
         {/* Top bar */}
         <div className="flex h-16 items-center justify-between gap-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0 group">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 shadow-sm group-hover:bg-primary-700 transition-colors">
-              <Megaphone className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-base font-bold text-gray-900 hidden sm:block">Reklamsidan</span>
+          <Link href="/" className="flex items-center shrink-0">
+            <Image
+              src="/logo.png"
+              alt="wecq Reklamsidan"
+              width={140}
+              height={36}
+              className="h-9 w-auto"
+              priority
+            />
           </Link>
 
           {/* Right side */}

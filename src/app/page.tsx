@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
 import { Megaphone, Building2, Users, Star, Filter, Globe, ChevronRight, TrendingUp, Target, Shield, Mail, Send, CheckCircle } from 'lucide-react'
 
@@ -34,11 +35,15 @@ export default function LandingPage() {
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600">
-              <Megaphone className="h-4 w-4 text-white" />
-            </div>
-            <span className="text-lg font-bold text-gray-900 tracking-tight">Reklamsidan</span>
+          <div className="flex items-center">
+            <Image
+              src="/logo.png"
+              alt="wecq Reklamsidan"
+              width={160}
+              height={41}
+              className="h-10 w-auto"
+              priority
+            />
           </div>
           <div className="flex items-center gap-3">
             <a href="#kontakta-oss" className="hidden sm:block text-sm font-medium text-gray-600 hover:text-gray-900 transition">
