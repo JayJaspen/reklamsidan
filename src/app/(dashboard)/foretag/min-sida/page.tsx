@@ -28,6 +28,7 @@ export default function ForetagMinSida() {
     description: '',
     counties: [] as string[],
     categoriesB2C: [] as number[],
+    sendsB2C: true,
     sendsB2B: false,
     categoriesB2B: [] as number[],
     billingMethod: 'address' as 'address' | 'email',
@@ -67,7 +68,8 @@ export default function ForetagMinSida() {
             .map(r => SWEDISH_COUNTIES[r.county_id - 1])
             .filter(Boolean) as string[],
           categoriesB2C: (compCatsB2C ?? []).map(c => c.category_id),
-          sendsB2B: company.sends_b2b,
+          sendsB2C: company.sends_b2c ?? true,
+          sendsB2B: company.sends_b2b ?? false,
           categoriesB2B: (compCatsB2B ?? []).map(c => c.category_id),
           billingMethod: company.billing_method ?? 'address',
           billingAddress: company.billing_address ?? '',
@@ -164,6 +166,7 @@ export default function ForetagMinSida() {
         contact_phone: form.contactPhone,
         website: normalizeUrl(form.website),
         company_description: form.description,
+        sends_b2c: form.sendsB2C,
         sends_b2b: form.sendsB2B,
         billing_method: form.billingMethod,
         billing_address: form.billingAddress,
@@ -174,7 +177,8 @@ export default function ForetagMinSida() {
       if (updateError) throw updateError
 
       // Save counties via company_counties join table (DELETE + INSERT)
-      await supabase.from('company_counties').delete().eq('company_id', userId)
+      const { error: deleteCountyErr } = await supabase.from('company_counties').delete().eq('company_id', userId)
+      if (deleteCountyErr) throw deleteCountyErr
       if (form.counties.length > 0) {
         const countyInserts = form.counties
           .map(name => {
@@ -324,6 +328,29 @@ export default function ForetagMinSida() {
           </div>
         </div>
 
+        {/* Målgrupp */}
+        <div className="card p-6 space-y-3">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Målgrupp</h2>
+          <p className="text-xs text-gray-400">Välj vilka ni riktar er reklam till. Ni syns bara för de kundgrupper ni väljer.</p>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox"
+              checked={form.sendsB2C}
+              onChange={e => setForm(f => ({ ...f, sendsB2C: e.target.checked }))}
+              className="h-4 w-4 rounded border-gray-300 text-primary-600" />
+            <span className="text-sm font-medium text-gray-700">B2C – privatpersoner</span>
+          </label>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox"
+              checked={form.sendsB2B}
+              onChange={e => setForm(f => ({ ...f, sendsB2B: e.target.checked }))}
+              className="h-4 w-4 rounded border-gray-300 text-primary-600" />
+            <span className="text-sm font-medium text-gray-700">B2B – företagskunder</span>
+          </label>
+          {!form.sendsB2C && !form.sendsB2B && (
+            <p className="text-xs text-amber-600 font-medium">⚠ Du måste välja minst en målgrupp för att synas på plattformen.</p>
+          )}
+        </div>
+
         {/* B2C categories */}
         <div className="card p-6">
           <h2 className="mb-4 text-sm font-semibold text-gray-700 uppercase tracking-wide">B2C Kategorier</h2>
@@ -347,18 +374,12 @@ export default function ForetagMinSida() {
           </div>
         </div>
 
-        {/* B2B */}
+        {/* B2B categories */}
         <div className="card p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">B2B</h2>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox"
-                checked={form.sendsB2B}
-                onChange={e => setForm(f => ({ ...f, sendsB2B: e.target.checked }))}
-                className="h-4 w-4 rounded border-gray-300 text-primary-600" />
-              <span className="text-sm font-medium text-gray-700">Skicka B2B-reklam</span>
-            </label>
-          </div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">B2B Kategorier</h2>
+          {!form.sendsB2B && (
+            <p className="text-xs text-gray-400">Aktivera B2B under "Målgrupp" ovan för att välja B2B-kategorier.</p>
+          )}
 
           {form.sendsB2B && (
             <div>

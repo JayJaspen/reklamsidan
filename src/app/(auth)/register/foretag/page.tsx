@@ -33,6 +33,7 @@ export default function RegisterForetagPage() {
     description:     '',
     counties:        [] as string[],
     categoriesB2c:   [] as number[],
+    sendsB2c:        true,
     sendsB2b:        false,
     categoriesB2b:   [] as number[],
     billingMethod:   '' as 'address' | 'email' | '',
@@ -133,6 +134,7 @@ export default function RegisterForetagPage() {
       contact_phone:          form.contactPhone,
       website:                form.website,
       company_description:    form.description,
+      sends_b2c:              form.sendsB2c,
       sends_b2b:              form.sendsB2b,
       billing_method:         form.billingMethod || null,
       billing_address:        form.billingMethod === 'address' ? form.billingAddress : null,
@@ -282,6 +284,36 @@ export default function RegisterForetagPage() {
         {/* STEG 2: Kategorier & Län */}
         {step === 2 && (
           <div className="space-y-5">
+            {/* Målgrupp */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-700">
+                Målgrupp <span className="font-normal text-gray-400">(välj minst en)</span>
+              </label>
+              <div className="space-y-2 rounded-xl border border-gray-200 p-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={form.sendsB2c}
+                    onChange={e => set('sendsB2c', e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600" />
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">B2C – privatpersoner</span>
+                    <p className="text-xs text-gray-400">Ni syns för privatpersoner som söker reklam</p>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input type="checkbox" checked={form.sendsB2b}
+                    onChange={e => set('sendsB2b', e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600" />
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">B2B – företagskunder / inköpare</span>
+                    <p className="text-xs text-gray-400">Ni syns för inköpare och mottagarföretag</p>
+                  </div>
+                </label>
+                {!form.sendsB2c && !form.sendsB2b && (
+                  <p className="text-xs text-amber-600 font-medium pt-1">⚠ Välj minst en målgrupp för att synas på plattformen.</p>
+                )}
+              </div>
+            </div>
+
             {/* Hemmahörande län */}
             <div>
               <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -323,15 +355,8 @@ export default function RegisterForetagPage() {
               </div>
             </div>
 
-            {/* B2B */}
+            {/* B2B-kategorier */}
             <div>
-              <label className="flex items-center gap-3 cursor-pointer mb-3">
-                <input type="checkbox" checked={form.sendsB2b}
-                  onChange={e => set('sendsB2b', e.target.checked)}
-                  className="h-5 w-5 rounded border-gray-300 text-primary-600" />
-                <span className="text-sm font-semibold text-gray-700">Skickar ni även B2B-reklam?</span>
-              </label>
-
               {form.sendsB2b && (
                 <div className="max-h-60 overflow-y-auto space-y-3 rounded-xl border border-primary-200 bg-primary-50/30 p-3">
                   <p className="text-xs text-primary-600 font-medium">Välj B2B-kategorier:</p>

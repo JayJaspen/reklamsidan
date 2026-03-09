@@ -379,6 +379,9 @@ export default function Statistics() {
 
   const selectedAd = ads.find(a => a.id === selectedAdId)
 
+  const today = new Date().toISOString().slice(0, 10)
+  const activeAds = ads.filter(ad => ad.valid_from <= today && ad.valid_to >= today)
+
   if (loading) return <div className="py-20 text-center text-gray-400">Laddar statistik...</div>
 
   return (
@@ -387,6 +390,30 @@ export default function Statistics() {
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2 mb-6">
           <BarChart3 className="h-6 w-6 text-blue-600" /> Statistik
         </h1>
+      </div>
+
+      {/* Aktiva reklamblad */}
+      <div className={`rounded-2xl border p-6 ${activeAds.length > 0 ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'}`}>
+        <h2 className={`mb-3 text-sm font-semibold uppercase tracking-wide ${activeAds.length > 0 ? 'text-green-700' : 'text-gray-500'}`}>
+          Aktiva reklamblad just nu
+        </h2>
+        {activeAds.length === 0 ? (
+          <p className="text-gray-500 text-sm">Du har inga aktiva reklamblad just nu.</p>
+        ) : (
+          <div className="space-y-2">
+            {activeAds.map(ad => (
+              <div key={ad.id} className="flex items-center justify-between rounded-xl bg-white border border-green-100 px-4 py-3">
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">{ad.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {ad.ad_type.toUpperCase()} &middot; Gäller t.o.m. {new Date(ad.valid_to).toLocaleDateString('sv-SE')}
+                  </p>
+                </div>
+                <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">● Aktiv</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Pricing */}

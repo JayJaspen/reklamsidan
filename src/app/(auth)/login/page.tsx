@@ -73,22 +73,22 @@ function LoginForm() {
         </div>
 
         <div>
-          <div className="mb-1.5 flex items-center justify-between">
-            <label className="block text-sm font-medium text-gray-700">Lösenord</label>
-            <Link href="/glomt-losenord" className="text-xs text-primary-600 hover:text-primary-700 transition-colors">
-              Glömt lösenord?
-            </Link>
-          </div>
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">Lösenord</label>
           <div className="relative">
             <input
               type={showPw ? 'text' : 'password'} required autoComplete="current-password"
               value={password} onChange={e => setPassword(e.target.value)}
               className="input-field pr-10" placeholder="••••••••"
             />
-            <button type="button" onClick={() => setShowPw(!showPw)}
+            <button type="button" tabIndex={-1} onClick={() => setShowPw(!showPw)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors">
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
+          </div>
+          <div className="mt-1.5 flex justify-end">
+            <Link href="/glomt-losenord" className="text-xs text-primary-600 hover:text-primary-700 transition-colors">
+              Glömt lösenord?
+            </Link>
           </div>
         </div>
 

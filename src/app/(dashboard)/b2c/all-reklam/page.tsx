@@ -6,10 +6,13 @@ import AdCard from '@/components/AdCard'
 import { Search, Heart, Globe } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
+type CategoryOpt = { id: number; name: string; parent_id: number | null }
+
 export default function B2CAllReklam() {
   const supabase = createClient()
   const [userId, setUserId]      = useState<string | null>(null)
   const [filter, setFilter]      = useState({ query: '', category: '', county: '' })
+  const [allCategories, setAllCategories] = useState<CategoryOpt[]>([])
   const [companies, setCompanies] = useState<{
     id: string; public_name: string; logo_url: string | null; ad_count: number
   }[]>([])
@@ -29,6 +32,9 @@ export default function B2CAllReklam() {
           })
       }
     })
+    // Ladda kategorier för filter
+    supabase.from('categories_b2c').select('id, name, parent_id').eq('is_active', true).order('sort_order')
+      .then(({ data }) => { if (data) setAllCategories(data) })
   }, [])
 
   async function handleSearch() {
@@ -37,15 +43,38 @@ export default function B2CAllReklam() {
     setSelectedCompany(null)
     setAds([])
 
-    // Only show companies that have B2C categories (filter out B2B-only companies)
-    const { data: b2cLinks } = await supabase
-      .from('company_categories_b2c')
-      .select('company_id')
-    const validB2CIds = [...new Set((b2cLinks ?? []).map((r: any) => r.company_id as string))]
+    // Only show companies that target B2C (sends_b2c = true)
+    let query = supabase
+      .from('companies')
+      .select('id, public_name, logo_url')
+      .eq('is_active', true)
+      .eq('sends_b2c', true)
+
+    // Category filter: find company_ids matching the selected category
+    if (filter.category) {
+      const catId = parseInt(filter.category)
+      const { data: subCats } = await supabase
+        .from('categories_b2c')
+        .select('id')
+        .or(`id.eq.${catId},parent_id.eq.${catId}`)
+        .eq('is_active', true)
+      const catIds = (subCats ?? []).map(c => c.id)
+      if (catIds.length > 0) {
+        const { data: catLinks } = await supabase
+          .from('company_categories_b2c')
+          .select('company_id')
+          .in('category_id', catIds)
+        const catCompanyIds = [...new Set((catLinks ?? []).map((r: any) => r.company_id as string))]
+        if (catCompanyIds.length === 0) {
+          setCompanies([])
+          setLoading(false)
+          return
+        }
+        query = query.in('id', catCompanyIds)
+      }
+    }
 
     // County filter: look up company_ids via company_counties join table
-    // (companies.counties column doesn't exist – counties stored in company_counties)
-    let countyCompanyIds: string[] | null = null
     if (filter.county) {
       const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(filter.county)
       if (countyIdx >= 0) {
@@ -53,30 +82,18 @@ export default function B2CAllReklam() {
           .from('company_counties')
           .select('company_id')
           .eq('county_id', countyIdx + 1)
-        countyCompanyIds = (countyLinks ?? []).map((r: any) => r.company_id as string)
+        const countyCompanyIds = (countyLinks ?? []).map((r: any) => r.company_id as string)
         if (countyCompanyIds.length === 0) {
           setCompanies([])
           setLoading(false)
           return
         }
+        query = query.in('id', countyCompanyIds)
       }
-    }
-
-    let query = supabase
-      .from('companies')
-      .select('id, public_name, logo_url')
-      .eq('is_active', true)
-
-    if (validB2CIds.length > 0) {
-      query = query.in('id', validB2CIds)
     }
 
     if (filter.query) {
       query = query.ilike('public_name', `%${filter.query}%`)
-    }
-
-    if (countyCompanyIds) {
-      query = query.in('id', countyCompanyIds)
     }
 
     const { data } = await query.order('public_name')
@@ -120,6 +137,9 @@ export default function B2CAllReklam() {
     }
   }
 
+  const parentCats = allCategories.filter(c => c.parent_id === null)
+  const subCatsFor = (pid: number) => allCategories.filter(c => c.parent_id === pid)
+
   return (
     <div>
       <div className="mb-6">
@@ -132,11 +152,26 @@ export default function B2CAllReklam() {
       {/* Search */}
       <div className="card mb-6 p-5">
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="sm:col-span-2">
+          <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-600">Sök på företagsnamn</label>
             <input type="text" className="input-field" value={filter.query}
               onChange={e => setFilter(f => ({ ...f, query: e.target.value }))}
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
               placeholder="t.ex. ICA, Elgiganten..." />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-600">Kategori</label>
+            <select className="input-field" value={filter.category}
+              onChange={e => setFilter(f => ({ ...f, category: e.target.value }))}>
+              <option value="">Alla kategorier</option>
+              {parentCats.map(parent => (
+                <optgroup key={parent.id} label={parent.name}>
+                  {subCatsFor(parent.id).map(sub => (
+                    <option key={sub.id} value={sub.id}>{sub.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-600">Län</label>

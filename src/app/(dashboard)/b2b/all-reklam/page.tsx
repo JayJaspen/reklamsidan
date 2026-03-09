@@ -6,10 +6,13 @@ import AdCard from '@/components/AdCard'
 import { Search, Heart, Globe } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
+type CategoryOpt = { id: number; name: string; parent_id: number | null }
+
 export default function B2BAllReklam() {
   const supabase = createClient()
   const [userId, setUserId]      = useState<string | null>(null)
   const [filter, setFilter]      = useState({ query: '', category: '', county: '' })
+  const [allCategories, setAllCategories] = useState<CategoryOpt[]>([])
   const [companies, setCompanies] = useState<{
     id: string; public_name: string; logo_url: string | null; ad_count: number
   }[]>([])
@@ -29,6 +32,9 @@ export default function B2BAllReklam() {
           })
       }
     })
+    // Ladda kategorier för filter
+    supabase.from('categories_b2b').select('id, name, parent_id').eq('is_active', true).order('sort_order')
+      .then(({ data }) => { if (data) setAllCategories(data) })
   }, [])
 
   async function handleSearch() {
@@ -37,9 +43,37 @@ export default function B2BAllReklam() {
     setSelectedCompany(null)
     setAds([])
 
-    // County filter: look up company_ids via company_counties join table
-    // (companies.counties column doesn't exist – counties stored in company_counties)
-    let countyCompanyIds: string[] | null = null
+    let query = supabase
+      .from('companies')
+      .select('id, public_name, logo_url')
+      .eq('is_active', true)
+      .eq('sends_b2b', true)  // Only show B2B-capable companies
+
+    // Category filter
+    if (filter.category) {
+      const catId = parseInt(filter.category)
+      const { data: subCats } = await supabase
+        .from('categories_b2b')
+        .select('id')
+        .or(`id.eq.${catId},parent_id.eq.${catId}`)
+        .eq('is_active', true)
+      const catIds = (subCats ?? []).map(c => c.id)
+      if (catIds.length > 0) {
+        const { data: catLinks } = await supabase
+          .from('company_categories_b2b')
+          .select('company_id')
+          .in('category_id', catIds)
+        const catCompanyIds = [...new Set((catLinks ?? []).map((r: any) => r.company_id as string))]
+        if (catCompanyIds.length === 0) {
+          setCompanies([])
+          setLoading(false)
+          return
+        }
+        query = query.in('id', catCompanyIds)
+      }
+    }
+
+    // County filter
     if (filter.county) {
       const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(filter.county)
       if (countyIdx >= 0) {
@@ -47,27 +81,18 @@ export default function B2BAllReklam() {
           .from('company_counties')
           .select('company_id')
           .eq('county_id', countyIdx + 1)
-        countyCompanyIds = (countyLinks ?? []).map((r: any) => r.company_id as string)
+        const countyCompanyIds = (countyLinks ?? []).map((r: any) => r.company_id as string)
         if (countyCompanyIds.length === 0) {
           setCompanies([])
           setLoading(false)
           return
         }
+        query = query.in('id', countyCompanyIds)
       }
     }
 
-    let query = supabase
-      .from('companies')
-      .select('id, public_name, logo_url')
-      .eq('is_active', true)
-      .eq('sends_b2b', true)  // Only show B2B-capable companies
-
     if (filter.query) {
       query = query.ilike('public_name', `%${filter.query}%`)
-    }
-
-    if (countyCompanyIds) {
-      query = query.in('id', countyCompanyIds)
     }
 
     const { data } = await query.order('public_name')
@@ -111,23 +136,41 @@ export default function B2BAllReklam() {
     }
   }
 
+  const parentCats = allCategories.filter(c => c.parent_id === null)
+  const subCatsFor = (pid: number) => allCategories.filter(c => c.parent_id === pid)
+
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Globe className="h-6 w-6 text-green-500" /> All reklam
         </h1>
-        <p className="text-sm text-gray-500">Sök och utforska alla annonsörföretag</p>
+        <p className="text-sm text-gray-500">Sök och utforska alla leverantörsföretag</p>
       </div>
 
       {/* Search */}
       <div className="card mb-6 p-5">
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="sm:col-span-2">
+          <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-600">Sök på företagsnamn</label>
             <input type="text" className="input-field" value={filter.query}
               onChange={e => setFilter(f => ({ ...f, query: e.target.value }))}
-              placeholder="t.ex. ICA, Elgiganten..." />
+              onKeyDown={e => e.key === 'Enter' && handleSearch()}
+              placeholder="t.ex. Granngården, Ahlsell..." />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-600">Kategori</label>
+            <select className="input-field" value={filter.category}
+              onChange={e => setFilter(f => ({ ...f, category: e.target.value }))}>
+              <option value="">Alla kategorier</option>
+              {parentCats.map(parent => (
+                <optgroup key={parent.id} label={parent.name}>
+                  {subCatsFor(parent.id).map(sub => (
+                    <option key={sub.id} value={sub.id}>{sub.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-600">Län</label>
@@ -148,13 +191,13 @@ export default function B2BAllReklam() {
       {!searched ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 py-16 text-gray-400">
           <Search className="mb-3 h-12 w-12 opacity-30" />
-          <p className="text-sm">Sök för att se företag och deras reklam</p>
+          <p className="text-sm">Sök för att se leverantörer och deras reklam</p>
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Company list */}
           <div className="lg:col-span-1">
-            <p className="mb-3 text-sm font-medium text-gray-600">{companies.length} företag hittades</p>
+            <p className="mb-3 text-sm font-medium text-gray-600">{companies.length} leverantörer hittades</p>
             <div className="space-y-2">
               {companies.map(c => (
                 <div key={c.id}

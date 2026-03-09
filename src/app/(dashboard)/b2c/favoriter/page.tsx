@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Star, Search, X, Building2, Globe, ExternalLink } from 'lucide-react'
+import { Star, Search, Building2, Globe } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
 type Company = {
@@ -30,7 +30,6 @@ export default function B2CFavoriter() {
   const [allCategories, setAllCategories] = useState<{ id: number; name: string; parent_id: number | null }[]>([])
   const [searchResults, setSearchResults] = useState<Company[]>([])
   const [searching, setSearching] = useState(false)
-  const [hasSearched, setHasSearched] = useState(false)
 
   // Set av company-id:s som följs (för snabb lookup)
   const followedIds = useMemo(() => new Set(favorites.map(f => f.id)), [favorites])
@@ -42,6 +41,8 @@ export default function B2CFavoriter() {
       await loadFavorites(user.id)
       await loadCategories()
       setLoading(false)
+      // Visa alla B2C-företag direkt utan att behöva söka
+      await handleSearch('', '', '')
     })
   }, [])
 
@@ -54,8 +55,6 @@ export default function B2CFavoriter() {
     if (!data || data.length === 0) { setFavorites([]); return }
 
     const ids = data.map(f => f.company_id)
-    // Note: do NOT select 'counties' – that column doesn't exist on companies.
-    // Counties are stored in the company_counties join table.
     const { data: companies } = await supabase
       .from('companies')
       .select('id, public_name, logo_url, company_description, website')
@@ -81,7 +80,6 @@ export default function B2CFavoriter() {
   }
 
   async function loadCategories() {
-    // Hämta alla kategorier (både föräldra och under) för sökning
     const { data } = await supabase
       .from('categories_b2c')
       .select('id, name, parent_id')
@@ -90,27 +88,19 @@ export default function B2CFavoriter() {
     setAllCategories(data ?? [])
   }
 
-  async function handleSearch() {
-    if (!searchName && !searchCategory && !searchCounty) {
-      setHasSearched(true)
-      setSearchResults([])
-      return
-    }
+  // name/category/county kan skickas in direkt för att stödja auto-sökning vid mount
+  async function handleSearch(
+    name = searchName,
+    category = searchCategory,
+    county = searchCounty,
+  ) {
     setSearching(true)
-    setHasSearched(true)
 
     let companyIds: string[] | null = null
 
-    // Hämta B2C-kompatibla företag (som har B2C-kategorier) – filtrera bort B2B-only
-    const { data: b2cCompanyLinks } = await supabase
-      .from('company_categories_b2c')
-      .select('company_id')
-    const validB2CIds = [...new Set((b2cCompanyLinks ?? []).map((r: any) => r.company_id as string))]
-
-    // Om kategori vald – hämta matchande company_ids (inkl. underkategorier)
-    if (searchCategory) {
-      const catId = parseInt(searchCategory)
-      // Hitta alla underkategorier för vald kategori (eller använd kategorin direkt)
+    // Kategorifilter: löser ut underkategorier och hitta matchande company_ids
+    if (category) {
+      const catId = parseInt(category)
       const { data: subCats } = await supabase
         .from('categories_b2c')
         .select('id')
@@ -130,10 +120,10 @@ export default function B2CFavoriter() {
       }
     }
 
-    // Om län valt – hämta matchande company_ids via company_counties-tabellen
+    // Länsfilter
     let countyCompanyIds: string[] | null = null
-    if (searchCounty) {
-      const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(searchCounty)
+    if (county) {
+      const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(county)
       if (countyIdx >= 0) {
         const { data: countyLinks } = await supabase
           .from('company_counties')
@@ -148,19 +138,14 @@ export default function B2CFavoriter() {
       }
     }
 
-    // Note: do NOT select 'counties' – column doesn't exist on companies table
     let q = supabase
       .from('companies')
       .select('id, public_name, logo_url, company_description, website')
       .eq('is_active', true)
+      .eq('sends_b2c', true)  // Visa bara B2C-aktiva företag
       .order('public_name')
 
-    // Filtrera bort B2B-only företag
-    if (validB2CIds.length > 0) {
-      q = q.in('id', validB2CIds)
-    }
-
-    if (searchName) q = q.ilike('public_name', `%${searchName}%`)
+    if (name) q = q.ilike('public_name', `%${name}%`)
     if (companyIds) q = q.in('id', companyIds)
     if (countyCompanyIds) q = q.in('id', countyCompanyIds)
 
@@ -200,13 +185,16 @@ export default function B2CFavoriter() {
         .from('user_favorites')
         .insert({ user_id: userId, company_id: companyId })
       if (insertErr) { console.error('Follow error:', insertErr); return }
-      // Note: no 'counties' column on companies table
       const { data } = await supabase
         .from('companies')
         .select('id, public_name, logo_url, company_description, website')
         .eq('id', companyId).single()
       if (data) setFavorites(f => [...f, { ...data, categories: [] }])
     }
+  }
+
+  function onClickSearch() {
+    handleSearch(searchName, searchCategory, searchCounty)
   }
 
   // Bygg kategorilista med underkategorier för dropdown
@@ -264,7 +252,7 @@ export default function B2CFavoriter() {
                 placeholder="Sök namn..."
                 value={searchName}
                 onChange={e => setSearchName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                onKeyDown={e => e.key === 'Enter' && onClickSearch()}
               />
             </div>
             <div>
@@ -293,7 +281,7 @@ export default function B2CFavoriter() {
             </div>
             <div className="flex items-end">
               <button
-                onClick={handleSearch}
+                onClick={onClickSearch}
                 disabled={searching}
                 className="btn-primary w-full gap-2"
               >
@@ -304,23 +292,23 @@ export default function B2CFavoriter() {
           </div>
         </div>
 
-        {hasSearched && !searching && (
-          searchResults.length === 0 ? (
-            <div className="rounded-xl border border-gray-200 py-10 text-center text-sm text-gray-400">
-              Inga företag matchade din sökning
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
-              {searchResults.map(c => (
-                <CompanyCard
-                  key={c.id}
-                  company={c}
-                  isFollowing={followedIds.has(c.id)}
-                  onToggle={() => toggleFollow(c.id)}
-                />
-              ))}
-            </div>
-          )
+        {searching ? (
+          <div className="py-10 text-center text-sm text-gray-400">Laddar företag...</div>
+        ) : searchResults.length === 0 ? (
+          <div className="rounded-xl border border-gray-200 py-10 text-center text-sm text-gray-400">
+            Inga företag matchade din sökning
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {searchResults.map(c => (
+              <CompanyCard
+                key={c.id}
+                company={c}
+                isFollowing={followedIds.has(c.id)}
+                onToggle={() => toggleFollow(c.id)}
+              />
+            ))}
+          </div>
         )}
       </section>
     </div>
