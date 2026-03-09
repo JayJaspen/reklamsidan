@@ -38,15 +38,15 @@ export default function DashboardNav({ tabs, userName }: Props) {
     <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {/* Top bar */}
-        <div className="flex h-16 items-center justify-between gap-4">
+        <div className="flex h-14 items-center justify-between gap-4">
           {/* Logo */}
           <Link href="/" className="flex items-center shrink-0">
             <Image
               src="/logo.png"
               alt="wecq Reklamsidan"
-              width={72}
-              height={72}
-              className="h-16 w-auto"
+              width={200}
+              height={60}
+              className="h-10 w-auto"
               priority
             />
           </Link>

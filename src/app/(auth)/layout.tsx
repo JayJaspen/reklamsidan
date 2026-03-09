@@ -11,9 +11,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <Image
               src="/logo.png"
               alt="wecq Reklamsidan"
-              width={120}
-              height={120}
-              className="h-20 w-auto"
+              width={240}
+              height={72}
+              className="h-14 w-auto"
               priority
             />
           </div>

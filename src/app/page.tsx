@@ -34,14 +34,14 @@ export default function LandingPage() {
 
       {/* ── Header ── */}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-2">
           <div className="flex items-center">
             <Image
               src="/logo.png"
               alt="wecq Reklamsidan"
-              width={96}
-              height={96}
-              className="h-24 w-auto"
+              width={200}
+              height={60}
+              className="h-12 w-auto"
               priority
             />
           </div>
