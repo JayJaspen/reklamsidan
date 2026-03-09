@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState } from 'react'
-import { Megaphone, Building2, Users, Star, Filter, Globe, ChevronRight, TrendingUp, Target, Shield, Mail, Send, CheckCircle } from 'lucide-react'
+import { Building2, Users, Star, Filter, Globe, ChevronRight, TrendingUp, Target, Shield, Mail, Send, CheckCircle } from 'lucide-react'
 
 export default function LandingPage() {
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' })
@@ -286,11 +286,8 @@ export default function LandingPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-gray-100 bg-white px-4 py-10">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary-600">
-              <Megaphone className="h-3.5 w-3.5 text-white" />
-            </div>
-            <span className="font-bold text-gray-900">Reklamsidan</span>
+          <div className="flex items-center">
+            <Image src="/logo.png" alt="wecq Reklamsidan" width={160} height={48} className="h-10 w-auto" />
           </div>
           <p className="text-sm text-gray-400">© {new Date().getFullYear()} Reklamsidan. Alla rättigheter förbehållna.</p>
           <div className="flex gap-4 text-sm text-gray-500">
