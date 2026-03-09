@@ -1,16 +1,16 @@
 # Reklamsidan – Projektstatus
 
-> Senast uppdaterad: 2026-03-09
-> Stack: Next.js 15 (App Router) + Supabase (PostgreSQL + RLS + Storage)
+> Senast uppdaterad: 2026-03-09 (Session 4)
+> Stack: Next.js 15 (App Router) + Supabase (PostgreSQL + RLS + Storage) + Tailwind CSS
 
 ---
 
 ## Vad är Reklamsidan?
 
-En svensk plattform för digital reklam. Företag laddar upp reklamblad (bilder/PDF), och användare (B2C-konsumenter eller B2B-inköpare) kan bläddra bland annonser, följa favorit-leverantörer och filtrera på kategori och län.
+En svensk plattform för digital reklam. Företag laddar upp reklamblad (bilder/PDF/MP4), och användare (B2C-konsumenter eller B2B-inköpare) kan bläddra bland annonser, följa favoritleverantörer och filtrera på kategori och län.
 
-**Tre roller:**
-- `foretag` – sänder reklam, hanterar sin profil
+**Fyra roller:**
+- `foretag` – sänder reklam, hanterar sin profil, ser statistik
 - `b2c` – privatpersoner som ser B2C-annonser
 - `b2b` – inköpare som ser B2B-annonser
 - `admin` – administrerar hela plattformen
@@ -59,15 +59,31 @@ const inserts = form.counties.map(name => {
 if (inserts.length > 0) await supabase.from('company_counties').insert(inserts)
 ```
 
-**Rätt (filtrera):**
+### Supabase-querys returnerar `PromiseLike`, inte `Promise`
+
+`.catch()` finns INTE på `PromiseLike`. Använd alltid `async/await` + `try/catch/finally`:
+
 ```typescript
-const countyIdx = SWEDISH_COUNTIES.indexOf(searchCounty)
-const { data: countyLinks } = await supabase
-  .from('company_counties')
-  .select('company_id')
-  .eq('county_id', countyIdx + 1)
-const countyIds = countyLinks.map(r => r.company_id)
-query = query.in('id', countyIds)
+// FEL
+useEffect(() => {
+  supabase.from('...').select('...').then(...).catch(...) // catch saknas!
+}, [])
+
+// RÄTT
+useEffect(() => {
+  async function load() {
+    try {
+      const { data, error } = await supabase.from('...').select('...')
+      if (error) throw error
+      setData(data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+  load()
+}, [])
 ```
 
 ---
@@ -75,54 +91,50 @@ query = query.in('id', countyIds)
 ## Databasschema (nyckeldelar)
 
 ```
-companies          – företagsprofiler (id = auth.uid() för inloggat företag)
-                   – sends_b2c BOOLEAN DEFAULT TRUE (ny kolumn, se migration nedan)
-                   – sends_b2b BOOLEAN DEFAULT FALSE
-ads                – annonser (ad_type: 'b2c' | 'b2b', valid_from/to, file_url, file_type)
-active_ads         – VIEW: ads + JOIN companies, filtrerar automatiskt på aktiva datum
-counties           – uppslagstabell: id SERIAL, name TEXT, code TEXT
-company_counties   – join: company_id UUID + county_id INTEGER
-categories_b2c     – B2C kategorier (parent_id NULL = förälder, annars underkategori)
-categories_b2b     – B2B kategorier
-company_categories_b2c – join: company_id + category_id
-company_categories_b2b – join: company_id + category_id
-user_favorites     – join: user_id + company_id
-discarded_ads      – join: user_id + ad_id (bortvalda annonser)
+companies              – företagsprofiler (id = auth.uid() för inloggat företag)
+                       – sends_b2c BOOLEAN DEFAULT TRUE
+                       – sends_b2b BOOLEAN DEFAULT FALSE
+                       – is_active BOOLEAN (admin kan spärra konton)
+ads                    – annonser (ad_type: 'b2c'|'b2b', valid_from/to, file_url, file_type)
+saved_ads              – join: user_id + ad_id + saved_at TIMESTAMPTZ
+ad_reads               – join: ad_id + user_id + read_at + tab_source
+user_favorites         – join: user_id + company_id (följande)
+discarded_ads          – join: user_id + ad_id (bortvalda annonser)
+users_b2c              – B2C-profiler (gender, birth_year, county_id)
+users_b2b              – B2B-profiler (company_name, county_id)
+users_b2c_categories   – join: user_id + category_id (B2C kategoriintresse)
+users_b2b_categories   – join: user_id + category_id (B2B kategoriintresse)
+categories_b2c         – B2C-kategorier (parent_id NULL = förälder)
+categories_b2b         – B2B-kategorier
+company_counties       – join: company_id + county_id
+user_profiles          – alla användare (id, user_type: 'b2c'|'b2b'|'admin')
 ```
-
-**Viktigt om `active_ads`-vyn:**
-```sql
-SELECT a.*, c.public_name AS company_name, c.logo_url AS company_logo
-FROM ads a JOIN companies c ON c.id = a.company_id
-WHERE a.valid_from <= CURRENT_DATE AND a.valid_to >= CURRENT_DATE
-```
-
-`AdCard`-komponenten kräver fälten `company_name: string` och `company_logo: string | null`.
-Dessa kommer från vyn ELLER måste mappas manuellt vid direktfråga mot `ads`.
 
 ---
 
 ## Migrations (körda i Supabase)
 
-| Fil | Innehåll |
-|-----|----------|
-| `fix_rls_and_storage_policies.sql` | Skärpte ads RLS – tog ev. bort "alla ser aktiva annonser"-policy |
-| `fix_favoriter_rls.sql` | RLS-fix för user_favorites |
-| `fix_logo_rls_and_cost_limit.sql` | Logo-storage RLS + cost_limit på companies |
-| `add_anon_read_categories.sql` | Anon-läsning av kategorier |
-| `fix_company_counties_and_ads_rls.sql` | County RLS + ads SELECT policy (status okänd) |
-| `add_sends_b2c_and_fix_all_policies.sql` | **⚠ MÅSTE KÖRAS** – Se nedan |
+Alla filer ligger i `supabase/migrations/`. Kör dem i Supabase Dashboard → SQL Editor.
 
-### ⚠ Kör denna migration i Supabase SQL Editor
+| Fil | Innehåll | Status |
+|-----|----------|--------|
+| `fix_rls_and_storage_policies.sql` | ads RLS, storage-policies | ✅ Körd |
+| `fix_favoriter_rls.sql` | RLS för user_favorites, company_select_own_favorites | ✅ Körd |
+| `fix_logo_rls_and_cost_limit.sql` | Logo-storage RLS + cost_limit på companies | ✅ Körd |
+| `add_anon_read_categories.sql` | Anon-läsning av kategorier | ✅ Körd |
+| `fix_company_counties_and_ads_rls.sql` | County RLS + ads SELECT-policy | ✅ Körd |
+| `add_sends_b2c_and_fix_all_policies.sql` | sends_b2c-kolumn, category RLS | ✅ Körd |
+| `add_push_subscriptions.sql` | Push-notiser (web push subscriptions) | ✅ Körd |
+| `add_storage_security.sql` | Storage bucket-policies | ✅ Körd |
+| `fix_saved_ads_and_category_rls.sql` | **Session 4** – se nedan | ✅ Körd |
 
-`supabase/migrations/add_sends_b2c_and_fix_all_policies.sql` **HAR INTE körts** mot databasen.
+### `fix_saved_ads_and_category_rls.sql` (Session 4)
 
-Den innehåller:
-1. `ALTER TABLE companies ADD COLUMN sends_b2c BOOLEAN DEFAULT TRUE` – krävs för B2C-filtrering
-2. `company_counties` RLS: SELECT för alla inloggade + ALL för eget företag (fix för länval)
-3. `ads` SELECT policy: återskapat "Authenticated see active ads"
-4. `company_categories_b2c/b2b` ALL policy för eget företag (fix för kategorisparning)
-5. `categories_b2c/b2b` INSERT policy för företag och admin (krävs för Kategorier-fliken)
+Löser två buggar:
+
+1. **Sparad reklam visades inte** – `ads` RLS-policyn `"Authenticated see active ads"` blockerade utgångna annonser. Ny policy `"Users can read own saved ads"` låter användare läsa sina sparade annonser oavsett `valid_to`.
+
+2. **Målgrupp uppdaterades inte vid kategorival** – `users_b2c_categories` och `users_b2b_categories` hade `USING (user_id = auth.uid())` vilket blockerade företagskonton. Nya policies `"Companies can read category interests b2c/b2b"` låter företag läsa alla rader.
 
 ---
 
@@ -131,83 +143,119 @@ Den innehåller:
 ```
 src/app/(dashboard)/
 ├── b2c/
-│   ├── all-reklam/page.tsx     – Bläddra bland B2C-annonser, filtrera på namn/kategori/län
-│   ├── favoriter/page.tsx      – Mina följda företag + sökning (auto-visar alla vid sidladdning)
-│   └── favoritreklam/page.tsx  – Annonser från följda företag (client component)
+│   ├── all-reklam/page.tsx      – Bläddra bland B2C-annonser, filtrera på namn/kategori/län
+│   ├── favoriter/page.tsx       – Mina följda företag + sökning (auto-visar alla vid sidladdning)
+│   ├── favoritreklam/page.tsx   – Annonser från följda företag (client component)
+│   └── sparad/page.tsx          – Sparad reklam (async/await + try/finally)
 ├── b2b/
-│   ├── all-reklam/page.tsx     – Bläddra bland B2B-annonser, filtrera på namn/kategori/län
-│   ├── favoriter/page.tsx      – Mina följda leverantörer + sökning (auto-visar alla vid sidladdning)
-│   └── favoritreklam/page.tsx  – Annonser från följda leverantörer (client component)
+│   ├── all-reklam/page.tsx      – Bläddra bland B2B-annonser, filtrera på namn/kategori/län
+│   ├── favoriter/page.tsx       – Mina följda leverantörer + sökning
+│   ├── favoritreklam/page.tsx   – Annonser från följda leverantörer (client component)
+│   └── sparad/page.tsx          – Sparad reklam (async/await + try/finally)
 ├── foretag/
-│   ├── statistik/page.tsx      – Statistik + aktiva annonser visas direkt
-│   ├── skicka-reklam/page.tsx  – Skapa ny annons
-│   ├── kategorier/page.tsx     – Lägg till kategorier (ny sida, Session 3)
-│   └── min-sida/page.tsx       – Profil + länval + målgrupp (B2C/B2B) + kategorier
+│   ├── statistik/page.tsx       – Statistik + aktiva annonser + prislista (inkl. årsavgift 499 kr)
+│   ├── skicka-reklam/page.tsx   – Skapa ny annons (målgruppsräknare med Set-union)
+│   ├── kategorier/page.tsx      – Lägg till kategorier
+│   └── min-sida/page.tsx        – Profil + länval + målgrupp (B2C/B2B) + kategorier
 └── admin/
-    ├── page.tsx                 – Översikt
-    ├── foretag/page.tsx         – Hantera företag
-    ├── annonser/page.tsx        – Hantera annonser
-    └── kategorier/page.tsx      – Hantera kategorier (full CRUD)
+    ├── page.tsx                  – Översikt
+    ├── foretag/page.tsx          – Hantera företag (inkl. Spärra konto + bekräftelsedialog)
+    ├── annonser/page.tsx         – Hantera annonser
+    └── kategorier/page.tsx       – Hantera kategorier (full CRUD)
 
 src/components/
-└── AdCard.tsx                   – Kortvy för en annons (kräver company_name + company_logo)
+├── AdCard.tsx                    – Kortvy för en annons (visar PDF via PdfViewer)
+├── PdfViewer.tsx                 – Blädderbar PDF-visare med PDF.js (prev/next + "Sida X av Y")
+└── DashboardNav.tsx              – Navigation (logo uppdaterad)
 
 src/lib/
 ├── supabase/
-│   ├── client.ts               – Klient-side Supabase-klient
-│   └── server.ts               – Server-side Supabase-klient (cookies)
-└── utils.ts                    – SWEDISH_COUNTIES array (22 element)
+│   ├── client.ts                 – Klient-side Supabase-klient
+│   └── server.ts                 – Server-side Supabase-klient (cookies)
+├── webpush.ts                    – Web Push (VAPID, AES-128-GCM) – Uint8Array<ArrayBuffer>
+└── utils.ts                      – SWEDISH_COUNTIES array (22 element)
+
+public/
+├── logo.png                      – Beskuren logotyp (853×254, 20px marginal)
+├── pdf.worker.min.mjs            – PDF.js worker (serveras statiskt för PdfViewer)
+└── favicon/icons/manifest        – PWA-ikoner
 ```
 
 ---
 
-## Åtgärdade buggar (historik)
+## Åtgärdade buggar / förbättringar per session
 
-### Session 1 – 12 buggar
-- Statistiksida för företag (annonser, visningar, klick)
-- Min sida – fälteditoring och spara
-- Favoriter – grundläggande följ/sluta-följa
-- Login-flöde
-- Admin-filter
-- B2B-målgruppsräkning
-- All-reklam-filtrering
+### Session 1
+- Statistiksida för företag, Min sida, Favoriter, Login-flöde, Admin-filter, B2B-målgrupp, All-reklam-filtrering
 
-### Session 2 – 4 buggar (2026-03-07)
+### Session 2 (2026-03-07)
 
-| # | Bugg | Rotorsak | Fix |
-|---|------|----------|-----|
-| 1 | B2C Favoritreklam visade ingenting | `ads` RLS blockerade B2C-användare | Konverterat till client component |
-| 2 | B2C Favoriter – inga företag i "Mina favoriter" | `.select('counties')` – kolumnen finns inte | Tagit bort `counties` från SELECT |
-| 3 | B2C Favoriter – sökning returnerade inget | Klient-side-filter på `company.counties` | Länfilter via `company_counties`-tabellen |
-| 4 | Min sida – länsval sparades inte | `counties: form.counties` ignoreras (kolumnen finns inte) | Ladda/spara via `company_counties` join |
+| # | Bugg | Fix |
+|---|------|-----|
+| 1 | B2C Favoritreklam visade ingenting | Konverterat till client component, RLS-fix |
+| 2 | B2C Favoriter – inga företag | `.select('counties')` tog bort (kolumnen finns inte) |
+| 3 | B2C Favoriter – sökning returnerade inget | Länfilter via `company_counties`-tabellen |
+| 4 | Min sida – länsval sparades inte | Ladda/spara via `company_counties` join-tabell |
 
-### Session 3 – 7 förbättringar (2026-03-09)
+### Session 3 (2026-03-09)
 
-| # | Uppgift | Fil(er) | Ändring |
-|---|---------|---------|---------|
-| 1 | Login – UX | `(auth)/login/page.tsx` | "Glömt lösenord?" flyttad under lösenordsfält; eye-knapp `tabIndex={-1}` |
-| 2 | Foretag kategorier | `(dashboard)/foretag/kategorier/page.tsx` (NY) + `foretag/layout.tsx` | Ny flik "Kategorier" – företag kan lägga till B2C/B2B-kategorier med duplikatskydd |
-| 3 | Statistik – aktiva annonser | `foretag/statistik/page.tsx` | Visar aktiva annonsblad direkt, eller "Du har inga aktiva reklamblad just nu" |
-| 4 | Min sida – länval | `foretag/min-sida/page.tsx` | Felkontroll på DELETE + migration som fixar RLS |
-| 5 | All reklam – kategorifilter | `b2c/all-reklam/page.tsx` + `b2b/all-reklam/page.tsx` | Kategori-dropdown (optgroup) i sökformuläret för både B2C och B2B |
-| 6 | Favoriter – tomma resultat | `b2c/favoriter/page.tsx` + `b2b/favoriter/page.tsx` | Auto-laddar alla företag vid sidladdning; tar bort tidigt avbrott vid tom sökning |
-| 7 | Målgrupp (sends_b2c) | `foretag/min-sida/page.tsx` + `(auth)/register/foretag/page.tsx` + migration | Nytt "Målgrupp"-avsnitt med B2C/B2B-kryssrutor vid registrering och i Min sida |
+| # | Uppgift | Fil(er) |
+|---|---------|---------|
+| 1 | Login UX – "Glömt lösenord?" under lösenordsfält | `(auth)/login/page.tsx` |
+| 2 | Ny flik "Kategorier" för företag | `foretag/kategorier/page.tsx` (ny) |
+| 3 | Statistik – aktiva annonsblad visas direkt | `foretag/statistik/page.tsx` |
+| 4 | Min sida – länval felkontroll | `foretag/min-sida/page.tsx` |
+| 5 | All reklam – kategorifilter (optgroup) | `b2c/all-reklam/` + `b2b/all-reklam/` |
+| 6 | Favoriter – auto-laddar alla vid sidladdning | `b2c/favoriter/` + `b2b/favoriter/` |
+| 7 | Målgrupp sends_b2c/b2b vid registrering | `foretag/min-sida/` + `register/foretag/` |
 
-**Nyckelfix i Favoriter (session 3):**
-- Borttagen "early return" när inga sökkriterier angetts
-- B2C Favoriter: ersatt `company_categories_b2c`-baserat filter med `sends_b2c = true`
-- B2B Favoriter: borttagen `sends_b2b = true` från `loadFavorites` (favoriserade företag visas alltid oavsett om de ändrar sin inriktning senare)
-- Båda sidorna: `handleSearch('', '', '')` triggas automatiskt vid sidladdning
+### Session 4 (2026-03-09)
+
+| # | Uppgift | Fil(er) | Detalj |
+|---|---------|---------|--------|
+| 1 | TypeScript-fix `webpush.ts` | `src/lib/webpush.ts` | `Uint8Array<ArrayBuffer>` genomgående, `encryptPayload` returnerar `Uint8Array` istf `Buffer` |
+| 2 | Logga större på landningssidan | `src/app/page.tsx` | h-24, ny aspektratio 853×254 |
+| 3 | Logga beskuren (ta bort vit yta) | `public/logo.png` | ImageMagick trim + 20px kant |
+| 4 | Logga i auth-layout (login/register) | `src/app/(auth)/layout.tsx` | Ersatte megafon-ikon med `<Image src="/logo.png">` |
+| 5 | Logga i footer | `src/app/page.tsx` | Ersatte megafon-ikon i footer |
+| 6 | Smalare header, större logga | `DashboardNav.tsx` + `page.tsx` | h-14 header, logo 200×60 |
+| 7 | Sparad reklam laddade inte | `b2c/sparad/` + `b2b/sparad/` | Rewrite med async/await + try/finally, `setLoading(false)` i finally |
+| 8 | Målgruppsräknare – korrekt logik | `foretag/skicka-reklam/page.tsx` | Set-union: followers + kategoriintresserade → demografifilter |
+| 9 | Admin – spärra företagskonton | `admin/foretag/page.tsx` | Bekräftelsedialog + ShieldOff/ShieldCheck-ikoner |
+| 10 | RLS-fix sparad reklam | `supabase/migrations/fix_saved_ads_and_category_rls.sql` | Policy: users kan läsa egna sparade annonser oavsett `valid_to` |
+| 11 | RLS-fix kategoriintresse | samma migration | Policy: företag kan läsa `users_b2c/b2b_categories` |
+| 12 | Blädderbar PDF-visare | `src/components/PdfViewer.tsx` (ny) | PDF.js, canvas-rendering, prev/next, "Sida X av Y" |
+| 13 | AdCard använder PdfViewer | `src/components/AdCard.tsx` | Ersatte `<iframe>` med `<PdfViewer>` för PDF-filer |
+| 14 | Årsavgift i prislistan | `foretag/statistik/page.tsx` | Gul rad "Årsavgift – 499 kr/år" ovanför B2C/B2B-korten |
 
 ---
 
-## Kända kvarstående problem / TODO
+## Prissättning (som visas i appen)
 
-- [ ] **⚠ KRITISK: Kör migration** `add_sends_b2c_and_fix_all_policies.sql` i Supabase SQL Editor
-- [ ] **Push till GitHub**: Kör `git push` manuellt efter att ha kontrollerat att allt ser rätt ut
-- [ ] Verifiera att länval i Min sida sparas korrekt efter migration
-- [ ] Verifiera att Favoriter visar företag korrekt i produktion
-- [ ] Överväg att lägga till felvisning (toast/alert) vid PostgREST-fel i klientkomponenter
+| Typ | Situation | Pris |
+|-----|-----------|------|
+| B2C | Favorit- & intressereklam | 3 kr/läsning |
+| B2C | Generell reklam | 1 kr/läsning |
+| B2B | Favorit- & intressereklam | 5 kr/läsning |
+| B2B | Generell reklam | 3 kr/läsning |
+| — | Årsavgift | 499 kr/år |
+
+---
+
+## Senaste git-commits
+
+```
+16ffaac feat: lägg till årsavgift 499 kr i prislistan på statistiksidan
+477070c feat: blädderbar PDF-visare (häftesvy) med PDF.js
+5360928 fix: RLS-policyer för sparad reklam och kategoriintresse
+4cbde8b style: replace megaphone icon with logo in page footer
+0852894 feat: correct audience count + admin block company accounts
+a946ed2 style: crop logo whitespace, slim headers, larger logo text
+57ac9c7 fix: rewrite b2b/sparad useEffect with async/await to fix .catch() error
+4b9c018 fix: rewrite b2c/sparad useEffect with async/await to fix .catch() error
+2f1eb53 fix: larger logo, logo on login page, fix sparad-reklam loading
+14f7037 style: increase logo size in header and dashboard nav
+```
 
 ---
 
@@ -218,7 +266,7 @@ src/lib/
 cd Reklamsidan
 npm run dev
 
-# Pusha senaste commit
+# Pusha senaste commits
 git push
 
 # Visa senaste commits
