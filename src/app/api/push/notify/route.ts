@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/serviceRole'
 import { sendPushNotification, type PushSubscription } from '@/lib/webpush'
 
 // POST /api/push/notify
@@ -33,11 +34,11 @@ export async function POST(req: NextRequest) {
     // Hämta företagsnamn
     const { data: company } = await supabase
       .from('companies')
-      .select('name')
+      .select('public_name')
       .eq('id', user.id)
       .single()
 
-    const companyName = company?.name ?? 'Okänt företag'
+    const companyName = company?.public_name ?? 'Okänt företag'
 
     // ── Samla mottagare ──────────────────────────────────────
 
@@ -82,7 +83,10 @@ export async function POST(req: NextRequest) {
     const recipientIds = [...recipientSet]
 
     // ── Hämta push-prenumerationer ───────────────────────────
-    const { data: subscriptions } = await supabase
+    // Använder service role för att kringgå RLS – push_subscriptions
+    // tillhör mottagarna, inte det avsändande företaget.
+    const adminSupabase = createServiceRoleClient()
+    const { data: subscriptions } = await adminSupabase
       .from('push_subscriptions')
       .select('endpoint, p256dh, auth')
       .in('user_id', recipientIds)
