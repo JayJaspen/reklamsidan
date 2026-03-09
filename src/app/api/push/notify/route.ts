@@ -96,11 +96,14 @@ export async function POST(req: NextRequest) {
 
     const results = await Promise.allSettled(
       subscriptions.map(sub =>
-        sendPushNotification(sub as PushSubscription, {
-          title: `Ny reklam från ${companyName}`,
-          body: ad.name,
-          url: notifUrl,
-        })
+        sendPushNotification(
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          {
+            title: `Ny reklam från ${companyName}`,
+            body: ad.name,
+            url: notifUrl,
+          }
+        )
       )
     )
 
