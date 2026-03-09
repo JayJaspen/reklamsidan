@@ -44,9 +44,9 @@ export default function DashboardNav({ tabs, userName }: Props) {
             <Image
               src="/logo.png"
               alt="wecq Reklamsidan"
-              width={140}
-              height={36}
-              className="h-9 w-auto"
+              width={56}
+              height={56}
+              className="h-14 w-auto"
               priority
             />
           </Link>
