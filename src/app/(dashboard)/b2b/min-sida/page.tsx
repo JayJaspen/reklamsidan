@@ -3,14 +3,19 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
 import { Loader2, CheckCircle } from 'lucide-react'
 
 export default function B2BMinSida() {
   const supabase = createClient()
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
   const [saved, setSaved]     = useState(false)
   const [userId, setUserId]   = useState<string | null>(null)
+  const [showCancel, setShowCancel]   = useState(false)
+  const [cancelConfirm, setCancelConfirm] = useState('')
+  const [cancelling, setCancelling]   = useState(false)
 
   const [pwForm, setPwForm]   = useState({ newPw: '', confirmPw: '' })
   const [pwSaving, setPwSaving] = useState(false)
@@ -114,6 +119,19 @@ export default function B2BMinSida() {
       setPwForm({ newPw: '', confirmPw: '' })
       setTimeout(() => setPwMsg(null), 4000)
     }
+  }
+
+  async function handleCancelService() {
+    if (!userId) return
+    setCancelling(true)
+    const { error } = await supabase.from('users_b2b').delete().eq('id', userId)
+    if (error) {
+      alert('Kunde inte avsluta tjänsten: ' + error.message)
+      setCancelling(false)
+      return
+    }
+    await supabase.auth.signOut()
+    router.push('/')
   }
 
   const mainCats = categories.filter(c => c.parent_id === null)
@@ -244,6 +262,58 @@ export default function B2BMinSida() {
           </button>
         </div>
       </form>
+
+      {/* Avsluta tjänsten */}
+      <div className="mt-8">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-6">
+          <div className="mb-4">
+            <h2 className="text-sm font-semibold text-red-700 uppercase tracking-wide">⚠️ Avsluta tjänsten</h2>
+            <p className="mt-1 text-sm text-red-600">
+              Ditt konto och alla dina uppgifter raderas permanent. Detta går inte att ångra.
+            </p>
+          </div>
+          {!showCancel ? (
+            <button
+              type="button"
+              onClick={() => setShowCancel(true)}
+              className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-100 transition"
+            >
+              Avsluta tjänsten
+            </button>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-red-700 font-medium">
+                Skriv <span className="font-bold">AVSLUTA</span> för att bekräfta
+              </p>
+              <input
+                type="text"
+                className="input-field border-red-300 focus:ring-red-400"
+                placeholder="AVSLUTA"
+                value={cancelConfirm}
+                onChange={e => setCancelConfirm(e.target.value)}
+              />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleCancelService}
+                  disabled={cancelling || cancelConfirm !== 'AVSLUTA'}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                >
+                  {cancelling ? <Loader2 className="h-4 w-4 animate-spin inline-block mr-1.5" /> : null}
+                  {cancelling ? 'Avslutar...' : 'Bekräfta och avsluta'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowCancel(false); setCancelConfirm('') }}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+                >
+                  Avbryt
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

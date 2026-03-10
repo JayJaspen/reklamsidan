@@ -27,13 +27,62 @@ export default function NotificationPermission() {
       return
     }
     const perm = Notification.permission
-    if (perm === 'granted') {
-      setState('granted')
-    } else if (perm === 'denied') {
+    if (perm === 'denied') {
       setState('denied')
-    } else {
-      setState('default')
+      return
     }
+    if (perm === 'granted') {
+      // Already granted – ensure we have an active push subscription
+      setState('granted')
+      navigator.serviceWorker.ready.then(async reg => {
+        const existing = await reg.pushManager.getSubscription()
+        if (!existing) {
+          // Re-subscribe silently (no prompt needed)
+          try {
+            const subscription = await reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+            })
+            const sub = subscription.toJSON()
+            await fetch('/api/push/subscribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ endpoint: sub.endpoint, p256dh: sub.keys?.p256dh, auth: sub.keys?.auth }),
+            })
+          } catch (err) {
+            console.error('Auto re-subscribe error:', err)
+          }
+        }
+      })
+      return
+    }
+    // Permission is 'default' – ask automatically after a short delay
+    setState('pending')
+    const timer = setTimeout(async () => {
+      try {
+        const permission = await Notification.requestPermission()
+        if (permission !== 'granted') {
+          setState(permission === 'denied' ? 'denied' : 'default')
+          return
+        }
+        const registration = await navigator.serviceWorker.ready
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+        })
+        const sub = subscription.toJSON()
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint: sub.endpoint, p256dh: sub.keys?.p256dh, auth: sub.keys?.auth }),
+        })
+        setState('granted')
+      } catch (err) {
+        console.error('Auto push subscribe error:', err)
+        setState('default')
+      }
+    }, 1500)
+    return () => clearTimeout(timer)
   }, [])
 
   async function handleEnable() {
