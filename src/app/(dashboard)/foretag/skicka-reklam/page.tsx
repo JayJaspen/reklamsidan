@@ -127,7 +127,7 @@ export default function SkickaReklam() {
           .filter(g => ageGroupMap[g])
           .map(g => {
             const [min, max] = ageGroupMap[g]
-            return \`birth_year.gte.\${min},birth_year.lte.\${max}\`
+            return `birth_year.gte.${min},birth_year.lte.${max}`
           })
         if (orParts.length > 0) {
           query = (query as any).or(orParts.join(','))
