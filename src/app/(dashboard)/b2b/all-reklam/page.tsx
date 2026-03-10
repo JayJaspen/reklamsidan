@@ -97,19 +97,20 @@ export default function B2BAllReklam() {
 
     const { data } = await query.order('public_name')
 
-    // Räkna aktiva annonser per företag
-    const withCount = await Promise.all((data ?? []).map(async c => {
-      const { count } = await supabase
-        .from('ads')
-        .select('*', { count: 'exact', head: true })
-        .eq('company_id', c.id)
-        .eq('ad_type', 'b2b')
-        .lte('valid_from', new Date().toISOString().slice(0, 10))
-        .gte('valid_to', new Date().toISOString().slice(0, 10))
-      return { ...c, ad_count: count ?? 0 }
-    }))
+    const filteredIds = (data ?? []).map(c => c.id)
+    if (filteredIds.length === 0) {
+      setCompanies([])
+      setLoading(false)
+      return
+    }
 
-    setCompanies(withCount)
+    // Hämta annonsräkningar för alla matchande företag i ett enda RPC-anrop (löser N+1)
+    const { data: withCount } = await supabase.rpc('get_companies_with_ad_count', {
+      p_type: 'b2b',
+      p_company_ids: filteredIds,
+    })
+
+    setCompanies(withCount ?? [])
     setLoading(false)
   }
 

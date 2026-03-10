@@ -77,48 +77,69 @@ export async function POST(req: NextRequest) {
     }
 
     if (recipientSet.size === 0) {
-      return NextResponse.json({ ok: true, sent: 0 })
+      return NextResponse.json({ ok: true, sent: 0, message: 'Inga mottagare hittades' })
     }
 
     const recipientIds = [...recipientSet]
 
     // ── Hämta push-prenumerationer ───────────────────────────
-    // Använder service role för att kringgå RLS – push_subscriptions
-    // tillhör mottagarna, inte det avsändande företaget.
     const adminSupabase = createServiceRoleClient()
-    const { data: subscriptions } = await adminSupabase
+    const { data: subscriptions, error: subError } = await adminSupabase
       .from('push_subscriptions')
       .select('endpoint, p256dh, auth')
       .in('user_id', recipientIds)
 
+    if (subError) {
+      console.error('Push: fel vid hämtning av prenumerationer:', subError)
+      return NextResponse.json({ error: 'Databasfel' }, { status: 500 })
+    }
+
     if (!subscriptions || subscriptions.length === 0) {
-      return NextResponse.json({ ok: true, sent: 0 })
+      return NextResponse.json({ ok: true, sent: 0, message: 'Inga push-prenumerationer finns' })
     }
 
     // ── Skicka notiser ───────────────────────────────────────
     const notifUrl = ad.ad_type === 'b2c' ? '/b2c/favoritreklam' : '/b2b/favoritreklam'
+    const staleEndpoints: string[] = []
 
     const results = await Promise.allSettled(
-      subscriptions.map(sub =>
-        sendPushNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          {
-            title: `Ny reklam från ${companyName}`,
-            body: ad.name,
-            url: notifUrl,
+      subscriptions.map(async sub => {
+        try {
+          await sendPushNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            {
+              title: `Ny reklam från ${companyName}`,
+              body: ad.name,
+              url: notifUrl,
+            }
+          )
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err)
+          console.error(`Push misslyckades för endpoint ${sub.endpoint.slice(0, 60)}...: ${msg}`)
+          // 410 Gone eller 404 = prenumerationen är utgången, ta bort den
+          if (msg.includes('410') || msg.includes('404')) {
+            staleEndpoints.push(sub.endpoint)
           }
-        )
-      )
+          throw err
+        }
+      })
     )
 
-    const sent = results.filter(r => r.status === 'fulfilled').length
-    const failed = results.filter(r => r.status === 'rejected').length
-
-    if (failed > 0) {
-      console.warn(`Push: ${sent} lyckades, ${failed} misslyckades`)
+    // Städa upp utgångna prenumerationer
+    if (staleEndpoints.length > 0) {
+      await adminSupabase
+        .from('push_subscriptions')
+        .delete()
+        .in('endpoint', staleEndpoints)
+      console.log(`Push: tog bort ${staleEndpoints.length} utgångna prenumerationer`)
     }
 
-    return NextResponse.json({ ok: true, sent, failed })
+    const sent   = results.filter(r => r.status === 'fulfilled').length
+    const failed = results.filter(r => r.status === 'rejected').length
+
+    console.log(`Push: ${sent} lyckades, ${failed} misslyckades, ${staleEndpoints.length} utgångna borttagna`)
+
+    return NextResponse.json({ ok: true, sent, failed, stale: staleEndpoints.length })
   } catch (err) {
     console.error('Push notify error:', err)
     return NextResponse.json({ error: 'Serverfel' }, { status: 500 })
