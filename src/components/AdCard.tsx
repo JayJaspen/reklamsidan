@@ -35,7 +35,7 @@ export default function AdCard({ ad, userId, tabSource, onDiscard }: Props) {
   async function markRead() {
     await supabase.from('ad_reads').upsert({
       ad_id: ad.id, user_id: userId, tab_source: tabSource
-    }, { onConflict: 'ad_id,user_id', ignoreDuplicates: true })
+    }, { onConflict: 'ad_id,user_id,tab_source', ignoreDuplicates: true })
   }
 
   async function handleOpen() {
