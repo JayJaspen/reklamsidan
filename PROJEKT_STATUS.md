@@ -1,6 +1,6 @@
 # Reklamsidan – Projektstatus
 
-> Senast uppdaterad: 2026-03-09 (Session 4)
+> Senast uppdaterad: 2026-03-10 (Session 5)
 > Stack: Next.js 15 (App Router) + Supabase (PostgreSQL + RLS + Storage) + Tailwind CSS
 
 ---
@@ -94,10 +94,12 @@ useEffect(() => {
 companies              – företagsprofiler (id = auth.uid() för inloggat företag)
                        – sends_b2c BOOLEAN DEFAULT TRUE
                        – sends_b2b BOOLEAN DEFAULT FALSE
-                       – is_active BOOLEAN (admin kan spärra konton)
+                       – is_active BOOLEAN (admin kan spärra konton; sätts FALSE vid "Avsluta tjänsten")
 ads                    – annonser (ad_type: 'b2c'|'b2b', valid_from/to, file_url, file_type)
+                       – is_published BOOLEAN NOT NULL DEFAULT TRUE (avpublicera utan att ta bort)
 saved_ads              – join: user_id + ad_id + saved_at TIMESTAMPTZ
 ad_reads               – join: ad_id + user_id + read_at + tab_source
+                       – UNIQUE constraint: (ad_id, user_id, tab_source) – en rad per tab per användare
 user_favorites         – join: user_id + company_id (följande)
 discarded_ads          – join: user_id + ad_id (bortvalda annonser)
 users_b2c              – B2C-profiler (gender, birth_year, county_id)
@@ -127,6 +129,9 @@ Alla filer ligger i `supabase/migrations/`. Kör dem i Supabase Dashboard → SQ
 | `add_push_subscriptions.sql` | Push-notiser (web push subscriptions) | ✅ Körd |
 | `add_storage_security.sql` | Storage bucket-policies | ✅ Körd |
 | `fix_saved_ads_and_category_rls.sql` | **Session 4** – se nedan | ✅ Körd |
+| `fix_ad_reads_unique_constraint.sql` | **Session 5** – byt UNIQUE-constraint på ad_reads | ✅ Körd |
+| `fix_companies_ad_count_filter.sql` | **Session 5** – RPC get_companies_with_ad_count + p_company_ids | ✅ Körd |
+| `add_is_published_to_ads.sql` | **Session 5** – is_published kolumn + ny active_ads-vy | ✅ Körd |
 
 ### `fix_saved_ads_and_category_rls.sql` (Session 4)
 
@@ -164,8 +169,9 @@ src/app/(dashboard)/
     └── kategorier/page.tsx       – Hantera kategorier (full CRUD)
 
 src/components/
-├── AdCard.tsx                    – Kortvy för en annons (visar PDF via PdfViewer)
+├── AdCard.tsx                    – Kortvy för en annons; onConflict: 'ad_id,user_id,tab_source'
 ├── PdfViewer.tsx                 – Blädderbar PDF-visare med PDF.js (prev/next + "Sida X av Y")
+├── NotificationPermission.tsx    – Auto-aktiverar push vid sidladdning (1.5s fördröjning)
 └── DashboardNav.tsx              – Navigation (logo uppdaterad)
 
 src/lib/
@@ -209,6 +215,22 @@ public/
 | 6 | Favoriter – auto-laddar alla vid sidladdning | `b2c/favoriter/` + `b2b/favoriter/` |
 | 7 | Målgrupp sends_b2c/b2b vid registrering | `foretag/min-sida/` + `register/foretag/` |
 
+### Session 5 (2026-03-10)
+
+| # | Uppgift | Fil(er) | Detalj |
+|---|---------|---------|--------|
+| 1 | Faktureringsbugg – intressereklam debiterades 1 kr istf 3 kr | `AdCard.tsx` + `fix_ad_reads_unique_constraint.sql` | UNIQUE-constraint ändrad till `(ad_id, user_id, tab_source)`; upsert-nyckel uppdaterad |
+| 2 | N+1-query i All reklam-sidor | `b2c/all-reklam/` + `b2b/all-reklam/` + `fix_companies_ad_count_filter.sql` | RPC `get_companies_with_ad_count` fick ny parameter `p_company_ids UUID[]` |
+| 3 | Avpublicera aktiv annons (Statistik-fliken) | `foretag/statistik/page.tsx` + `add_is_published_to_ads.sql` | `is_published = false` istf att ändra `valid_to` (undviker CHECK-constraint) |
+| 4 | Målgruppsräknare visade 0 | `foretag/skicka-reklam/page.tsx` | Filtrar på `birth_year`-kolumnen (inte `age_group` som inte finns) |
+| 5 | Färgschema → lila/violet (premium-känsla) | `tailwind.config.js` | primary-paletten bytt från blå → amber → purple/violet |
+| 6 | Logotypfärg mörkare blå + skarpare | `public/logo.png` | PIL/Pillow: cyan → #1a56db + UnsharpMask |
+| 7 | "Avsluta tjänsten" för företag (Min sida) | `foretag/min-sida/page.tsx` | Sätter `companies.is_active = false` → loggar ut → redirect `/` |
+| 8 | "Avsluta tjänsten" för B2C-användare | `b2c/min-sida/page.tsx` | Raderar `users_b2c`-rad → loggar ut → redirect `/` |
+| 9 | "Avsluta tjänsten" för B2B-användare | `b2b/min-sida/page.tsx` | Raderar `users_b2b`-rad → loggar ut → redirect `/` |
+| 10 | Push-notiser auto-aktiveras vid sidladdning | `NotificationPermission.tsx` | `Notification.requestPermission()` triggas automatiskt efter 1,5 s om tillstånd är 'default'; re-prenumererar tyst om 'granted' men ingen aktiv sub |
+| 11 | active_ads-vy återskapad med JOIN | Supabase SQL (direkt) | `DROP VIEW` + `CREATE VIEW` med `JOIN companies` + `is_published = TRUE` |
+
 ### Session 4 (2026-03-09)
 
 | # | Uppgift | Fil(er) | Detalj |
@@ -242,19 +264,33 @@ public/
 
 ---
 
+## ⚠️ Viktigt – git-arbetsflöde
+
+Ändringar som görs i filerna av Claude (via editor) sparas direkt på disk men **committas inte automatiskt**. Du måste alltid köra:
+
+```bash
+git add -A
+git commit -m "beskrivning"
+git push
+```
+
+Annars deployas aldrig ändringarna till Vercel, även om du trycker "push" i ett GUI-verktyg utan att ha committat.
+
+---
+
 ## Senaste git-commits
 
 ```
-16ffaac feat: lägg till årsavgift 499 kr i prislistan på statistiksidan
-477070c feat: blädderbar PDF-visare (häftesvy) med PDF.js
-5360928 fix: RLS-policyer för sparad reklam och kategoriintresse
-4cbde8b style: replace megaphone icon with logo in page footer
-0852894 feat: correct audience count + admin block company accounts
-a946ed2 style: crop logo whitespace, slim headers, larger logo text
-57ac9c7 fix: rewrite b2b/sparad useEffect with async/await to fix .catch() error
-4b9c018 fix: rewrite b2c/sparad useEffect with async/await to fix .catch() error
-2f1eb53 fix: larger logo, logo on login page, fix sparad-reklam loading
-14f7037 style: increase logo size in header and dashboard nav
+c840b2b Add cancel service section to all min-sida pages and auto-enable push notifications
+75112d1 Update logo: darker blue symbol with sharper edges
+ca3917e Change primary color to purple/violet - premium feel
+4d878c6 Change primary color from blue to amber
+f259af0 Fix statistik: filter out unpublished ads after avpublicera
+723e70c Fix unpublish: use is_published flag instead of date manipulation
+21927ec Fix template literal escape in audience count
+d577551 Fix audience count (birth_year) and add unpublish button
+9f1e1d9 Fix push logging, stale subscriptions and N+1 query in all-reklam
+40fc157 Fix ad_reads billing: charge per tab_source, not per user+ad
 ```
 
 ---
