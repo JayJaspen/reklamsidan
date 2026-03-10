@@ -293,14 +293,11 @@ export default function Statistics() {
   async function handleUnpublish(adId: string) {
     if (!confirm('Är du säker på att du vill avpublicera detta reklamblad? Det blir omedelbart osynligt för användare.')) return
     setUnpublishing(adId)
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yDate = yesterday.toISOString().slice(0, 10)
-    const { error } = await supabase.from('ads').update({ valid_to: yDate }).eq('id', adId)
+    const { error } = await supabase.from('ads').update({ is_published: false }).eq('id', adId)
     if (error) {
       alert('Kunde inte avpublicera: ' + error.message)
     } else {
-      setAds(prev => prev.map(a => a.id === adId ? { ...a, valid_to: yDate } : a))
+      setAds(prev => prev.filter(a => a.id !== adId))
     }
     setUnpublishing(null)
   }
