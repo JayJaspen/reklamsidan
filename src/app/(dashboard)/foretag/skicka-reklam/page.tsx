@@ -102,7 +102,7 @@ export default function SkickaReklam() {
     const ids = [...candidateIds]
 
     if (targeting.type === 'b2c') {
-      // Steg 3 B2C: filtrera på kön, ålder, län bland kandidaterna
+      // Steg 3 B2C: filtrera på kön, ålder (via birth_year), län bland kandidaterna
       let query = supabase
         .from('users_b2c')
         .select('id', { count: 'exact', head: true })
@@ -111,9 +111,29 @@ export default function SkickaReklam() {
       if (targeting.genders.length > 0) {
         query = query.in('gender', targeting.genders)
       }
-      if (targeting.ageGroups.length > 0) {
-        query = query.in('age_group', targeting.ageGroups)
+
+      // Åldersgrupper filtreras via birth_year (users_b2c saknar age_group-kolumn)
+      if (targeting.ageGroups.length > 0 && targeting.ageGroups.length < 6) {
+        const currentYear = new Date().getFullYear()
+        const ageGroupMap: Record<string, [number, number]> = {
+          '18-25': [currentYear - 25, currentYear - 18],
+          '26-35': [currentYear - 35, currentYear - 26],
+          '36-45': [currentYear - 45, currentYear - 36],
+          '46-55': [currentYear - 55, currentYear - 46],
+          '56-65': [currentYear - 65, currentYear - 56],
+          '65+':   [1900,             currentYear - 65],
+        }
+        const orParts = targeting.ageGroups
+          .filter(g => ageGroupMap[g])
+          .map(g => {
+            const [min, max] = ageGroupMap[g]
+            return \`birth_year.gte.\${min},birth_year.lte.\${max}\`
+          })
+        if (orParts.length > 0) {
+          query = (query as any).or(orParts.join(','))
+        }
       }
+
       if (targeting.counties.length > 0) {
         query = query.in('county_id', targeting.counties.map(c =>
           (SWEDISH_COUNTIES as readonly string[]).indexOf(c) + 1

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { BarChart3, Download, Users, TrendingUp, Check } from 'lucide-react'
+import { BarChart3, Download, Users, TrendingUp, Check, XCircle } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
 type Ad = {
@@ -64,6 +64,7 @@ export default function Statistics() {
   const [adFilterGender, setAdFilterGender] = useState('')
   const [adFilterAge, setAdFilterAge] = useState('')
   const [adFilterCounty, setAdFilterCounty] = useState('')
+  const [unpublishing, setUnpublishing] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -289,6 +290,21 @@ export default function Statistics() {
     loadReaderDetails()
   }, [selectedAdId, followerIdArray])
 
+  async function handleUnpublish(adId: string) {
+    if (!confirm('Är du säker på att du vill avpublicera detta reklamblad? Det blir omedelbart osynligt för användare.')) return
+    setUnpublishing(adId)
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yDate = yesterday.toISOString().slice(0, 10)
+    const { error } = await supabase.from('ads').update({ valid_to: yDate }).eq('id', adId)
+    if (error) {
+      alert('Kunde inte avpublicera: ' + error.message)
+    } else {
+      setAds(prev => prev.map(a => a.id === adId ? { ...a, valid_to: yDate } : a))
+    }
+    setUnpublishing(null)
+  }
+
   function handleExportPDF() {
     if (!selectedAd) return
     const totalReads = adReaderDetails.length
@@ -409,7 +425,18 @@ export default function Statistics() {
                     {ad.ad_type.toUpperCase()} &middot; Gäller t.o.m. {new Date(ad.valid_to).toLocaleDateString('sv-SE')}
                   </p>
                 </div>
-                <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">● Aktiv</span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700">● Aktiv</span>
+                  <button
+                    onClick={() => handleUnpublish(ad.id)}
+                    disabled={unpublishing === ad.id}
+                    title="Avpublicera"
+                    className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 transition disabled:opacity-50"
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                    {unpublishing === ad.id ? 'Avpublicerar...' : 'Avpublicera'}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
