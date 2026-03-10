@@ -110,6 +110,11 @@ export default function InstallBanner() {
     const p = detectPlatform()
     if (p === 'unsupported') return
 
+    // Hämta eventet som fångades tidigt i layout.tsx (innan React hydration)
+    if ((window as any).__deferredInstallPrompt) {
+      setDeferredPrompt((window as any).__deferredInstallPrompt)
+    }
+    // Lyssna även på framtida events (t.ex. om sidan laddas om)
     window.addEventListener('beforeinstallprompt', (e: Event) => {
       e.preventDefault()
       setDeferredPrompt(e)

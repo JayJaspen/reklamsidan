@@ -48,6 +48,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="sv" className={inter.variable}>
+      <head>
+        {/* Fånga beforeinstallprompt tidigt – innan React hydration */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            window.__deferredInstallPrompt = e;
+          });
+        `}} />
+      </head>
       <body>
         <InstallBanner />
         {children}

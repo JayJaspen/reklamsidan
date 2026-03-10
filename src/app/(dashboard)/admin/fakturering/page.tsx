@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Download, Archive, TrendingUp } from 'lucide-react'
+import { Download, Archive, TrendingUp, ChevronDown, ChevronRight } from 'lucide-react'
 import { formatSEK } from '@/lib/utils'
 
 type BillingRow = {
@@ -26,84 +26,124 @@ type BillingRow = {
   total_amount: number
 }
 
+type AdRow = {
+  company_id: string
+  ad_id: string
+  ad_name: string
+  favorit_b2c_reads: number
+  intresse_b2c_reads: number
+  generell_b2c_reads: number
+  favorit_b2b_reads: number
+  intresse_b2b_reads: number
+  generell_b2b_reads: number
+  favorit_b2c_amount: number
+  intresse_b2c_amount: number
+  generell_b2c_amount: number
+  favorit_b2b_amount: number
+  intresse_b2b_amount: number
+  generell_b2b_amount: number
+  total_amount: number
+}
+
 export default function AdminFakturering() {
   const supabase = createClient()
-  const [data, setData]       = useState<BillingRow[]>([])
-  const [loading, setLoading] = useState(true)
+  const [data, setData]             = useState<BillingRow[]>([])
+  const [adData, setAdData]         = useState<AdRow[]>([])
+  const [loading, setLoading]       = useState(true)
   const [showArchiveModal, setShowArchiveModal] = useState(false)
-  const [archiveLabel, setArchiveLabel] = useState('')
+  const [archiveLabel, setArchiveLabel]         = useState('')
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    supabase
-      .from('billing_summary')
-      .select('*')
-      .gt('total_amount', 0)
-      .order('total_amount', { ascending: false })
-      .then(({ data }) => {
-        if (data) setData(data as BillingRow[])
-        setLoading(false)
-      })
+    Promise.all([
+      supabase.from('billing_summary').select('*').gt('total_amount', 0).order('total_amount', { ascending: false }),
+      supabase.rpc('get_billing_by_ad'),
+    ]).then(([{ data: summary }, { data: ads }]) => {
+      if (summary) setData(summary as BillingRow[])
+      if (ads)     setAdData(ads as AdRow[])
+      setLoading(false)
+    })
   }, [])
 
   const totalSum = data.reduce((acc, r) => acc + Number(r.total_amount), 0)
 
+  function toggleExpand(companyId: string) {
+    setExpandedCompanies(prev => {
+      const next = new Set(prev)
+      next.has(companyId) ? next.delete(companyId) : next.add(companyId)
+      return next
+    })
+  }
+
+  function adsForCompany(companyId: string) {
+    return adData.filter(a => a.company_id === companyId)
+  }
+
   function handleExportExcel() {
-    // Exportera CSV som kan öppnas i Excel
     const headers = [
-      'Företag','Faktureringsmetod',
-      'Favorit B2C (antal)','Favorit B2C (kr)',
-      'Intresse B2C (antal)','Intresse B2C (kr)',
-      'Generell B2C (antal)','Generell B2C (kr)',
-      'Favorit B2B (antal)','Favorit B2B (kr)',
-      'Intresse B2B (antal)','Intresse B2B (kr)',
-      'Generell B2B (antal)','Generell B2B (kr)',
+      'Typ', 'Företag', 'Reklamblad',
+      'Favorit B2C (st)', 'Favorit B2C (kr)',
+      'Intresse B2C (st)', 'Intresse B2C (kr)',
+      'Generell B2C (st)', 'Generell B2C (kr)',
+      'Favorit B2B (st)', 'Favorit B2B (kr)',
+      'Intresse B2B (st)', 'Intresse B2B (kr)',
+      'Generell B2B (st)', 'Generell B2B (kr)',
       'TOTALT (kr exkl. moms)',
     ]
-    const rows = data.map(r => [
-      r.public_name,
-      r.billing_method === 'email' ? r.billing_email : r.billing_address,
-      r.favorit_b2c_reads,   r.favorit_b2c_amount,
-      r.intresse_b2c_reads,  r.intresse_b2c_amount,
-      r.generell_b2c_reads,  r.generell_b2c_amount,
-      r.favorit_b2b_reads,   r.favorit_b2b_amount,
-      r.intresse_b2b_reads,  r.intresse_b2b_amount,
-      r.generell_b2b_reads,  r.generell_b2b_amount,
-      r.total_amount,
-    ])
 
-    const csv = [headers, ...rows].map(r => r.join(';')).join('\n')
+    const rows: (string | number)[][] = []
+    data.forEach(r => {
+      rows.push([
+        'Företag', r.public_name, '',
+        r.favorit_b2c_reads,  r.favorit_b2c_amount,
+        r.intresse_b2c_reads, r.intresse_b2c_amount,
+        r.generell_b2c_reads, r.generell_b2c_amount,
+        r.favorit_b2b_reads,  r.favorit_b2b_amount,
+        r.intresse_b2b_reads, r.intresse_b2b_amount,
+        r.generell_b2b_reads, r.generell_b2b_amount,
+        r.total_amount,
+      ])
+      adsForCompany(r.company_id).forEach(a => {
+        rows.push([
+          'Reklamblad', r.public_name, a.ad_name,
+          a.favorit_b2c_reads,  a.favorit_b2c_amount,
+          a.intresse_b2c_reads, a.intresse_b2c_amount,
+          a.generell_b2c_reads, a.generell_b2c_amount,
+          a.favorit_b2b_reads,  a.favorit_b2b_amount,
+          a.intresse_b2b_reads, a.intresse_b2b_amount,
+          a.generell_b2b_reads, a.generell_b2b_amount,
+          a.total_amount,
+        ])
+      })
+    })
+
+    const csv = [headers, ...rows]
+      .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';'))
+      .join('\n')
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
     a.href = url
-    a.download = `reklamsidan-fakturering-${new Date().toISOString().slice(0,10)}.csv`
+    a.download = `reklamsidan-fakturering-${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
     URL.revokeObjectURL(url)
-
     setShowArchiveModal(true)
   }
 
   async function handleArchive() {
     if (!archiveLabel) return
-    await supabase.from('billing_archive').insert({
-      period_label: archiveLabel,
-      data: data,
-    })
-    // Markera läsningarna som fakturerade – hämta annons-IDs separat
+    await supabase.from('billing_archive').insert({ period_label: archiveLabel, data })
     const companyIds = data.map(r => r.company_id)
     if (companyIds.length > 0) {
-      const { data: adRows } = await supabase
-        .from('ads')
-        .select('id')
-        .in('company_id', companyIds)
+      const { data: adRows } = await supabase.from('ads').select('id').in('company_id', companyIds)
       const adIds = (adRows ?? []).map(r => r.id)
       if (adIds.length > 0) {
-        await supabase.from('ad_reads').update({ is_billed: true })
-          .in('ad_id', adIds)
+        await supabase.from('ad_reads').update({ is_billed: true }).in('ad_id', adIds)
       }
     }
     setShowArchiveModal(false)
     setData([])
+    setAdData([])
     alert('Faktureringsunderlaget har arkiverats.')
   }
 
@@ -112,15 +152,13 @@ export default function AdminFakturering() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Fakturering</h1>
-          <p className="text-sm text-gray-500">Alla företag med obetalda läsningar</p>
+          <p className="text-sm text-gray-500">Klicka på ett företag för att se uppdelning per reklamblad</p>
         </div>
-        <button onClick={handleExportExcel} disabled={data.length === 0}
-          className="btn-primary gap-2">
+        <button onClick={handleExportExcel} disabled={data.length === 0} className="btn-primary gap-2">
           <Download className="h-4 w-4" /> Exportera Excel
         </button>
       </div>
 
-      {/* Summary */}
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className="card p-5">
           <div className="flex items-center gap-3">
@@ -145,7 +183,8 @@ export default function AdminFakturering() {
             <table className="min-w-full divide-y divide-gray-100 text-sm">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase text-xs">Företag</th>
+                  <th className="w-8 px-2 py-3" />
+                  <th className="px-4 py-3 text-left font-semibold text-gray-500 uppercase text-xs">Företag / Reklamblad</th>
                   <th className="px-4 py-3 text-center font-semibold text-gray-500 uppercase text-xs" colSpan={2}>Favorit B2C</th>
                   <th className="px-4 py-3 text-center font-semibold text-gray-500 uppercase text-xs" colSpan={2}>Intresse B2C</th>
                   <th className="px-4 py-3 text-center font-semibold text-gray-500 uppercase text-xs" colSpan={2}>Generell B2C</th>
@@ -155,41 +194,58 @@ export default function AdminFakturering() {
                   <th className="px-4 py-3 text-right font-semibold text-gray-700 uppercase text-xs">Totalt</th>
                 </tr>
                 <tr className="bg-gray-50 text-xs text-gray-400">
-                  <th className="px-4 pb-2" />
-                  <th className="px-2 pb-2 text-center">st</th><th className="px-2 pb-2 text-center">kr</th>
-                  <th className="px-2 pb-2 text-center">st</th><th className="px-2 pb-2 text-center">kr</th>
-                  <th className="px-2 pb-2 text-center">st</th><th className="px-2 pb-2 text-center">kr</th>
-                  <th className="px-2 pb-2 text-center">st</th><th className="px-2 pb-2 text-center">kr</th>
-                  <th className="px-2 pb-2 text-center">st</th><th className="px-2 pb-2 text-center">kr</th>
-                  <th className="px-2 pb-2 text-center">st</th><th className="px-2 pb-2 text-center">kr</th>
+                  <th className="px-2 pb-2" /><th className="px-4 pb-2" />
+                  {['st','kr','st','kr','st','kr','st','kr','st','kr','st','kr'].map((h, i) => (
+                    <th key={i} className="px-2 pb-2 text-center">{h}</th>
+                  ))}
                   <th className="px-4 pb-2" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
-                {data.map(r => (
-                  <tr key={r.company_id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{r.public_name}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.favorit_b2c_reads}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.favorit_b2c_amount}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.intresse_b2c_reads}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.intresse_b2c_amount}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.generell_b2c_reads}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.generell_b2c_amount}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.favorit_b2b_reads}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.favorit_b2b_amount}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.intresse_b2b_reads}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.intresse_b2b_amount}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.generell_b2b_reads}</td>
-                    <td className="px-2 py-3 text-center text-gray-600">{r.generell_b2b_amount}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                      {formatSEK(Number(r.total_amount))}
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-gray-100">
+                {data.map(r => {
+                  const ads = adsForCompany(r.company_id)
+                  const isExpanded = expandedCompanies.has(r.company_id)
+                  return (
+                    <>
+                      {/* Företagsrad */}
+                      <tr
+                        key={r.company_id}
+                        className="cursor-pointer hover:bg-primary-50/40 transition"
+                        onClick={() => toggleExpand(r.company_id)}
+                      >
+                        <td className="px-2 py-3 text-gray-400">
+                          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-gray-900">
+                          {r.public_name}
+                          <span className="ml-2 text-xs font-normal text-gray-400">{ads.length} reklamblad</span>
+                        </td>
+                        {[r.favorit_b2c_reads, r.favorit_b2c_amount, r.intresse_b2c_reads, r.intresse_b2c_amount, r.generell_b2c_reads, r.generell_b2c_amount, r.favorit_b2b_reads, r.favorit_b2b_amount, r.intresse_b2b_reads, r.intresse_b2b_amount, r.generell_b2b_reads, r.generell_b2b_amount].map((v, i) => (
+                          <td key={i} className="px-2 py-3 text-center text-gray-600">{v}</td>
+                        ))}
+                        <td className="px-4 py-3 text-right font-bold text-gray-900">{formatSEK(Number(r.total_amount))}</td>
+                      </tr>
+
+                      {/* Per-annons-rader */}
+                      {isExpanded && ads.map(a => (
+                        <tr key={a.ad_id} className="bg-blue-50/30">
+                          <td className="px-2 py-2" />
+                          <td className="px-4 py-2 text-xs text-gray-500 pl-8">
+                            <span className="text-gray-300 mr-1">↳</span>{a.ad_name}
+                          </td>
+                          {[a.favorit_b2c_reads, a.favorit_b2c_amount, a.intresse_b2c_reads, a.intresse_b2c_amount, a.generell_b2c_reads, a.generell_b2c_amount, a.favorit_b2b_reads, a.favorit_b2b_amount, a.intresse_b2b_reads, a.intresse_b2b_amount, a.generell_b2b_reads, a.generell_b2b_amount].map((v, i) => (
+                            <td key={i} className="px-2 py-2 text-center text-xs text-gray-500">{v}</td>
+                          ))}
+                          <td className="px-4 py-2 text-right text-xs font-medium text-gray-700">{formatSEK(Number(a.total_amount))}</td>
+                        </tr>
+                      ))}
+                    </>
+                  )
+                })}
               </tbody>
               <tfoot className="bg-gray-50">
                 <tr>
-                  <td colSpan={13} className="px-4 py-3 text-right font-bold text-gray-700">Summa:</td>
+                  <td colSpan={14} className="px-4 py-3 text-right font-bold text-gray-700">Summa:</td>
                   <td className="px-4 py-3 text-right font-bold text-primary-700">{formatSEK(totalSum)}</td>
                 </tr>
               </tfoot>
@@ -198,7 +254,6 @@ export default function AdminFakturering() {
         </div>
       )}
 
-      {/* Archive Modal */}
       {showArchiveModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
@@ -215,9 +270,7 @@ export default function AdminFakturering() {
                 placeholder="t.ex. Mars 2026" />
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowArchiveModal(false)} className="btn-secondary flex-1">
-                Nej, stäng
-              </button>
+              <button onClick={() => setShowArchiveModal(false)} className="btn-secondary flex-1">Nej, stäng</button>
               <button onClick={handleArchive} disabled={!archiveLabel} className="btn-primary flex-1">
                 <Archive className="h-4 w-4" /> Arkivera
               </button>

@@ -76,8 +76,8 @@ export default function AdCard({ ad, userId, tabSource, onDiscard }: Props) {
         className="card-hover flex items-start gap-4 p-4 text-left w-full"
       >
         {ad.company_logo ? (
-          <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-gray-100">
-            <Image src={ad.company_logo} alt={ad.company_name} width={48} height={48} className="object-contain" />
+          <div className="relative h-12 w-12 flex-shrink-0 rounded-lg bg-gray-100 overflow-hidden">
+            <Image src={ad.company_logo} alt={ad.company_name} fill className="object-contain p-1" />
           </div>
         ) : (
           <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-primary-100 text-primary-600 font-bold text-lg">

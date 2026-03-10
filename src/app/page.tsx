@@ -2,12 +2,82 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Building2, Users, Star, Filter, Globe, ChevronRight, TrendingUp, Target, Shield, Mail, Send, CheckCircle } from 'lucide-react'
+
+const STATS_THRESHOLD = 100
+
+function useCountUp(target: number, duration = 1800) {
+  const [count, setCount] = useState(0)
+  const started = useRef(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !started.current) {
+          started.current = true
+          const start = performance.now()
+          const tick = (now: number) => {
+            const progress = Math.min((now - start) / duration, 1)
+            const eased = 1 - Math.pow(1 - progress, 3)
+            setCount(Math.floor(eased * target))
+            if (progress < 1) requestAnimationFrame(tick)
+            else setCount(target)
+          }
+          requestAnimationFrame(tick)
+        }
+      },
+      { threshold: 0.3 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [target, duration])
+
+  return { count, ref }
+}
+
+function StatCard({ value, label, icon: Icon, iconBg }: {
+  value: number; label: string; icon: React.ElementType; iconBg: string
+}) {
+  const { count, ref } = useCountUp(value)
+  return (
+    <div ref={ref} className="flex flex-col items-center gap-3">
+      <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${iconBg}`}>
+        <Icon className="h-7 w-7" />
+      </div>
+      <p className="text-5xl font-extrabold text-white tabular-nums">
+        {count.toLocaleString('sv-SE')}+
+      </p>
+      <p className="text-sm font-medium text-primary-200 text-center">{label}</p>
+    </div>
+  )
+}
+
+type Stats = { companies: number; b2c_users: number; b2b_users: number }
 
 export default function LandingPage() {
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' })
   const [contactState, setContactState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+  const [stats, setStats] = useState<Stats | null>(null)
+
+  useEffect(() => {
+    fetch('/api/stats')
+      .then(r => r.json())
+      .then((s: Stats) => {
+        // Visa bara om ALLA tre har nått tröskeln
+        if (
+          s.companies  >= STATS_THRESHOLD &&
+          s.b2c_users  >= STATS_THRESHOLD &&
+          s.b2b_users  >= STATS_THRESHOLD
+        ) {
+          setStats(s)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   async function handleContact(e: React.FormEvent) {
     e.preventDefault()
@@ -93,6 +163,34 @@ export default function LandingPage() {
 
         </div>
       </section>
+
+      {/* ── Stats ── */}
+      {stats && (
+        <section className="bg-primary-800 px-4 py-16">
+          <div className="mx-auto max-w-4xl">
+            <div className="grid grid-cols-3 gap-8 sm:gap-16">
+              <StatCard
+                value={stats.companies}
+                label="Annonsörer"
+                icon={Building2}
+                iconBg="bg-white/10"
+              />
+              <StatCard
+                value={stats.b2c_users}
+                label="Privatpersoner"
+                icon={Users}
+                iconBg="bg-white/10"
+              />
+              <StatCard
+                value={stats.b2b_users}
+                label="B2B-mottagare"
+                icon={Building2}
+                iconBg="bg-white/10"
+              />
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── How it works ── */}
       <section className="px-4 py-24">

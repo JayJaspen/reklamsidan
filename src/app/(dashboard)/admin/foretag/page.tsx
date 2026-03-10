@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Search, Download, Building2, X, Globe, Mail, Phone, MapPin, ShieldOff, ShieldCheck, AlertTriangle } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
+
+const SWEDISH_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ'.split('')
 
 type CompanyResult = {
   id: string
@@ -37,6 +39,19 @@ export default function AdminForetag() {
   const [selected, setSelected]   = useState<CompanyResult | null>(null)
   const [categories, setCategories] = useState<{ id: number; name: string; parent_id: number | null; type: 'b2b' | 'b2c' }[]>([])
   const [confirmBlock, setConfirmBlock] = useState<CompanyResult | null>(null)
+  const [activeLetter, setActiveLetter] = useState<string | null>(null)
+  const letterRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
+
+  // Bokstäver som faktiskt finns bland resultaten
+  const availableLetters = new Set(
+    results.map(c => c.public_name.charAt(0).toUpperCase())
+  )
+
+  function scrollToLetter(letter: string) {
+    setActiveLetter(letter)
+    const el = letterRefs.current[letter]
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   // Load categories on mount
   useEffect(() => {
@@ -191,72 +206,117 @@ export default function AdminForetag() {
           <p className="text-sm">Välj filter och tryck på Sök</p>
         </div>
       ) : (
-        <div className="card overflow-hidden">
-          <div className="border-b border-gray-100 px-6 py-4">
-            <span className="text-sm font-medium text-gray-700">{results.length} företag hittades</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Publikt namn</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Org.nr</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Kontaktperson</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">E-post</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {results.map(c => (
-                  <tr
-                    key={c.id}
-                    className="cursor-pointer hover:bg-primary-50/40 transition"
-                    onClick={() => setSelected(c)}
+        <>
+          {/* Alfabetsnavigation */}
+          {results.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-1">
+              {SWEDISH_ALPHABET.map(letter => {
+                const hasCompanies = availableLetters.has(letter)
+                return (
+                  <button
+                    key={letter}
+                    onClick={() => hasCompanies && scrollToLetter(letter)}
+                    disabled={!hasCompanies}
+                    className={`h-8 w-8 rounded-lg text-sm font-semibold transition ${
+                      activeLetter === letter
+                        ? 'bg-primary-600 text-white'
+                        : hasCompanies
+                        ? 'bg-white text-primary-600 border border-primary-200 hover:bg-primary-50'
+                        : 'bg-gray-50 text-gray-300 cursor-default'
+                    }`}
                   >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        {c.logo_url && (
-                          <img src={c.logo_url} alt="" className="h-8 w-8 rounded object-contain border border-gray-100" />
-                        )}
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{c.public_name}</p>
-                          <p className="text-xs text-gray-400">{c.registered_name}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{c.org_number}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{c.contact_person}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{c.contact_email}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        {c.is_active ? <ShieldCheck className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
-                        {c.is_active ? 'Aktiv' : 'Spärrad'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      {c.is_active ? (
-                        <button
-                          onClick={ev => { ev.stopPropagation(); requestBlock(c) }}
-                          className="text-xs text-red-600 hover:text-red-800 font-medium"
-                        >
-                          Spärra konto
-                        </button>
-                      ) : (
-                        <button
-                          onClick={ev => { ev.stopPropagation(); toggleActive(c.id, c.is_active) }}
-                          className="text-xs text-green-700 hover:text-green-900 font-medium"
-                        >
-                          Häv spärr
-                        </button>
-                      )}
-                    </td>
+                    {letter}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          <div className="card overflow-hidden">
+            <div className="border-b border-gray-100 px-6 py-4">
+              <span className="text-sm font-medium text-gray-700">{results.length} företag hittades</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Publikt namn</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Org.nr</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Kontaktperson</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">E-post</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-3" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {results.map((c, i) => {
+                    const letter = c.public_name.charAt(0).toUpperCase()
+                    const prevLetter = i > 0 ? results[i - 1].public_name.charAt(0).toUpperCase() : null
+                    const isNewLetter = letter !== prevLetter
+
+                    return (
+                      <>
+                        {isNewLetter && (
+                          <tr
+                            key={`letter-${letter}`}
+                            ref={el => { letterRefs.current[letter] = el }}
+                          >
+                            <td colSpan={6} className="bg-primary-50 px-6 py-2">
+                              <span className="text-xs font-bold uppercase tracking-widest text-primary-600">{letter}</span>
+                            </td>
+                          </tr>
+                        )}
+                        <tr
+                          key={c.id}
+                          className="cursor-pointer hover:bg-primary-50/40 transition"
+                          onClick={() => setSelected(c)}
+                        >
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              {c.logo_url && (
+                                <img src={c.logo_url} alt="" className="h-8 w-8 rounded object-contain border border-gray-100" />
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{c.public_name}</p>
+                                <p className="text-xs text-gray-400">{c.registered_name}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{c.org_number}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{c.contact_person}</td>
+                          <td className="px-6 py-4 text-sm text-gray-600">{c.contact_email}</td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${c.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {c.is_active ? <ShieldCheck className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
+                              {c.is_active ? 'Aktiv' : 'Spärrad'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            {c.is_active ? (
+                              <button
+                                onClick={ev => { ev.stopPropagation(); requestBlock(c) }}
+                                className="text-xs text-red-600 hover:text-red-800 font-medium"
+                              >
+                                Spärra konto
+                              </button>
+                            ) : (
+                              <button
+                                onClick={ev => { ev.stopPropagation(); toggleActive(c.id, c.is_active) }}
+                                className="text-xs text-green-700 hover:text-green-900 font-medium"
+                              >
+                                Häv spärr
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      </>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Bekräftelsedialog för spärr */}

@@ -422,7 +422,7 @@ export default function Statistics() {
         <p className="mb-3 text-xs text-gray-400">Du debiteras per unik läsning. Max en debitering per användare och annons.</p>
         <div className="mb-5 flex items-center justify-between rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3">
           <span className="text-sm font-medium text-yellow-800">Årsavgift</span>
-          <span className="text-sm font-bold text-yellow-900">499 kr/år</span>
+          <span className="text-sm font-bold text-yellow-900">990 kr/år</span>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {[
