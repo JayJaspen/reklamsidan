@@ -12,6 +12,7 @@ type Ad = {
   valid_from: string
   valid_to: string
   created_at: string
+  is_published: boolean
 }
 
 type FollowerStats = {
@@ -74,7 +75,7 @@ export default function Statistics() {
       // Fetch all ads for this company
       const { data: adsData } = await supabase
         .from('ads')
-        .select('id, name, ad_type, valid_from, valid_to, created_at')
+        .select('id, name, ad_type, valid_from, valid_to, created_at, is_published')
         .eq('company_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -393,7 +394,7 @@ export default function Statistics() {
   const selectedAd = ads.find(a => a.id === selectedAdId)
 
   const today = new Date().toISOString().slice(0, 10)
-  const activeAds = ads.filter(ad => ad.valid_from <= today && ad.valid_to >= today)
+  const activeAds = ads.filter(ad => ad.valid_from <= today && ad.valid_to >= today && ad.is_published !== false)
 
   if (loading) return <div className="py-20 text-center text-gray-400">Laddar statistik...</div>
 
