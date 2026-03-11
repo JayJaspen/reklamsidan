@@ -18,7 +18,7 @@ type Job = {
   contact_email: string | null
   application_url: string | null
   created_at: string
-  companies: { public_name: string } | null
+  companies: { public_name: string }[] | null
 }
 
 export default function B2CJobbmarknad() {
@@ -174,8 +174,8 @@ export default function B2CJobbmarknad() {
                 }
               </div>
 
-              {job.companies?.public_name && (
-                <p className="text-xs text-gray-400 mb-2 font-medium">{job.companies.public_name}</p>
+              {job.companies?.[0]?.public_name && (
+                <p className="text-xs text-gray-400 mb-2 font-medium">{job.companies[0].public_name}</p>
               )}
 
               <p className="text-sm text-gray-600 whitespace-pre-line">{job.description}</p>
