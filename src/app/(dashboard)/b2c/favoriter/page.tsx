@@ -22,6 +22,8 @@ export default function B2CFavoriter() {
 
   // Mina favoriter
   const [favorites, setFavorites] = useState<Company[]>([])
+  // notify_jobs per company_id
+  const [jobNotify, setJobNotify] = useState<Record<string, boolean>>({})
 
   // Sökning – hitta nya företag
   const [searchName, setSearchName] = useState('')
@@ -49,12 +51,17 @@ export default function B2CFavoriter() {
   async function loadFavorites(uid: string) {
     const { data } = await supabase
       .from('user_favorites')
-      .select('company_id')
+      .select('company_id, notify_jobs')
       .eq('user_id', uid)
 
     if (!data || data.length === 0) { setFavorites([]); return }
 
-    const ids = data.map(f => f.company_id)
+    // Build notify_jobs map
+    const notifyMap: Record<string, boolean> = {}
+    data.forEach((f: any) => { notifyMap[f.company_id] = f.notify_jobs ?? false })
+    setJobNotify(notifyMap)
+
+    const ids = data.map((f: any) => f.company_id)
     const { data: companies } = await supabase
       .from('companies')
       .select('id, public_name, logo_url, company_description, website')
@@ -193,6 +200,17 @@ export default function B2CFavoriter() {
     }
   }
 
+  async function toggleJobNotify(companyId: string) {
+    if (!userId) return
+    const newVal = !jobNotify[companyId]
+    const { error } = await supabase
+      .from('user_favorites')
+      .update({ notify_jobs: newVal })
+      .eq('user_id', userId)
+      .eq('company_id', companyId)
+    if (!error) setJobNotify(prev => ({ ...prev, [companyId]: newVal }))
+  }
+
   function onClickSearch() {
     handleSearch(searchName, searchCategory, searchCounty)
   }
@@ -228,7 +246,9 @@ export default function B2CFavoriter() {
                 key={c.id}
                 company={c}
                 isFollowing
+                notifyJobs={jobNotify[c.id] ?? false}
                 onToggle={() => toggleFollow(c.id)}
+                onToggleJobNotify={() => toggleJobNotify(c.id)}
               />
             ))}
           </div>
@@ -318,11 +338,15 @@ export default function B2CFavoriter() {
 function CompanyCard({
   company,
   isFollowing,
+  notifyJobs,
   onToggle,
+  onToggleJobNotify,
 }: {
   company: Company
   isFollowing: boolean
+  notifyJobs?: boolean
   onToggle: () => void
+  onToggleJobNotify?: () => void
 }) {
   return (
     <div className="card p-4 flex gap-4">
@@ -348,6 +372,19 @@ function CompanyCard({
             {isFollowing ? '★ Följer' : '+ Följ'}
           </button>
         </div>
+        {isFollowing && onToggleJobNotify !== undefined && (
+          <button
+            onClick={onToggleJobNotify}
+            title={notifyJobs ? 'Stäng av jobbannonser i Favoritreklam' : 'Visa jobbannonser i Favoritreklam'}
+            className={`mt-2 flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition ${
+              notifyJobs
+                ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            <span>{notifyJobs ? '💼 Jobbannonser på' : '💼 Jobbannonser av'}</span>
+          </button>
+        )}
 
         {company.company_description && (
           <p className="mt-1 text-xs text-gray-500 line-clamp-2">{company.company_description}</p>

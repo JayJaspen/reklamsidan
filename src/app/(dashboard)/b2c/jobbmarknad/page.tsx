@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { JOB_COUNTIES, CITIES_BY_COUNTY } from '@/lib/utils'
-import { Loader2, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { Loader2, X, ChevronDown, ChevronUp, Search } from 'lucide-react'
 
 type JobCategory = { id: number; name: string }
 
@@ -32,6 +32,7 @@ export default function B2CJobbmarknad() {
   const [jobs, setJobs]             = useState<Job[]>([])
   const [loading, setLoading]       = useState(true)
   const [searching, setSearching]   = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
   const [expandedId, setExpandedId] = useState<number | null>(null)
 
   // Filters
@@ -43,6 +44,8 @@ export default function B2CJobbmarknad() {
 
   const fetchJobs = useCallback(async () => {
     setSearching(true)
+    setHasSearched(true)
+    setExpandedId(null)
     let query = supabase
       .from('jobs')
       .select('id,title,description,category_id,county,city,is_remote,salary_min,salary_max,salary_period,contact_email,application_url,application_deadline,created_at,companies(public_name,logo_url)')
@@ -61,15 +64,9 @@ export default function B2CJobbmarknad() {
   useEffect(() => {
     supabase.from('job_categories').select('id,name').order('sort_order').then(({ data }) => {
       if (data) setCategories(data)
+      setLoading(false)
     })
-    fetchJobs().finally(() => setLoading(false))
   }, [])
-
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    if (!mounted) { setMounted(true); return }
-    fetchJobs()
-  }, [filterCategory, filterCounty, filterCity])
 
   function clearFilters() {
     setFilterCategory('')
@@ -137,21 +134,36 @@ export default function B2CJobbmarknad() {
           </div>
         </div>
 
-        {hasFilters && (
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-xs text-gray-500">{jobs.length} annons{jobs.length !== 1 ? 'er' : ''} hittade</span>
+        <div className="mt-4 flex items-center justify-between">
+          <button
+            onClick={fetchJobs}
+            disabled={searching}
+            className="btn-primary gap-2"
+          >
+            {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            {searching ? 'Söker...' : 'Sök jobb'}
+          </button>
+          {hasSearched && hasFilters && (
             <button
               onClick={clearFilters}
               className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 transition"
             >
               <X className="h-3.5 w-3.5" /> Rensa filter
             </button>
-          </div>
-        )}
+          )}
+          {hasSearched && (
+            <span className="text-xs text-gray-400">{jobs.length} annons{jobs.length !== 1 ? 'er' : ''}</span>
+          )}
+        </div>
       </div>
 
       {/* Job list */}
-      {searching ? (
+      {!hasSearched ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 py-16 text-gray-400">
+          <Search className="mb-3 h-12 w-12 opacity-30" />
+          <p className="text-sm">Välj filter och klicka på "Sök jobb" för att se annonser</p>
+        </div>
+      ) : searching ? (
         <div className="py-12 text-center text-gray-400">
           <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
           Söker...
