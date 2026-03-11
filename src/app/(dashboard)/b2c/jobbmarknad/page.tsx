@@ -20,6 +20,7 @@ type Job = {
   salary_period: string
   contact_email: string | null
   application_url: string | null
+  application_deadline: string | null
   created_at: string
   companies: { public_name: string; logo_url: string | null }[] | null
 }
@@ -44,7 +45,7 @@ export default function B2CJobbmarknad() {
     setSearching(true)
     let query = supabase
       .from('jobs')
-      .select('id,title,description,category_id,county,city,is_remote,salary_min,salary_max,salary_period,contact_email,application_url,created_at,companies(public_name,logo_url)')
+      .select('id,title,description,category_id,county,city,is_remote,salary_min,salary_max,salary_period,contact_email,application_url,application_deadline,created_at,companies(public_name,logo_url)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
 
@@ -211,6 +212,11 @@ export default function B2CJobbmarknad() {
                       {(job.salary_min || job.salary_max) && (
                         <span className="text-gray-500">
                           💰 {job.salary_min ? job.salary_min.toLocaleString('sv-SE') : '?'}–{job.salary_max ? job.salary_max.toLocaleString('sv-SE') : '?'} kr/{job.salary_period}
+                        </span>
+                      )}
+                      {job.application_deadline && (
+                        <span className="text-orange-500 font-medium">
+                          📅 Sista dag: {new Date(job.application_deadline).toLocaleDateString('sv-SE')}
                         </span>
                       )}
                       <span>•</span>

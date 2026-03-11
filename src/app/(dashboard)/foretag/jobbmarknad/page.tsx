@@ -20,6 +20,7 @@ type Job = {
   salary_period: string
   contact_email: string | null
   application_url: string | null
+  application_deadline: string | null
   is_active: boolean
   created_at: string
 }
@@ -36,6 +37,7 @@ const EMPTY_FORM = {
   salaryPeriod: 'månad',
   contactEmail: '',
   applicationUrl: '',
+  applicationDeadline: '',
 }
 
 export default function ForetagJobbmarknad() {
@@ -91,8 +93,9 @@ export default function ForetagJobbmarknad() {
       salaryMin:      job.salary_min != null ? String(job.salary_min) : '',
       salaryMax:      job.salary_max != null ? String(job.salary_max) : '',
       salaryPeriod:   job.salary_period ?? 'månad',
-      contactEmail:   job.contact_email ?? '',
-      applicationUrl: job.application_url ?? '',
+      contactEmail:        job.contact_email ?? '',
+      applicationUrl:      job.application_url ?? '',
+      applicationDeadline: job.application_deadline ?? '',
     })
     setEditId(job.id)
     setError(null)
@@ -137,9 +140,10 @@ export default function ForetagJobbmarknad() {
       salary_min:      form.salaryMin ? parseInt(form.salaryMin) : null,
       salary_max:      form.salaryMax ? parseInt(form.salaryMax) : null,
       salary_period:   form.salaryPeriod,
-      contact_email:   form.contactEmail.trim() || null,
-      application_url: normalizedUrl,
-      is_active:       true,
+      contact_email:        form.contactEmail.trim() || null,
+      application_url:      normalizedUrl,
+      application_deadline: form.applicationDeadline || null,
+      is_active:            true,
     }
 
     if (editId) {
@@ -345,6 +349,17 @@ export default function ForetagJobbmarknad() {
             </div>
             <p className="text-xs text-gray-400">Ange minst ett av ovanstående kontaktalternativ.</p>
 
+            {/* Deadline */}
+            <div className="w-1/2 pr-2">
+              <label className="mb-1.5 block text-sm font-medium text-gray-600">Sista ansökningsdatum (valfritt)</label>
+              <input
+                type="date"
+                className="input-field"
+                value={form.applicationDeadline}
+                onChange={e => setForm(f => ({ ...f, applicationDeadline: e.target.value }))}
+              />
+            </div>
+
             {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
 
             <div className="flex gap-3 pt-2">
@@ -386,9 +401,10 @@ export default function ForetagJobbmarknad() {
                   )}
                   <p className="text-sm text-gray-500 line-clamp-2 mt-1">{job.description}</p>
                   <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-400">
-                    {job.contact_email   && <span>✉️ {job.contact_email}</span>}
-                    {job.application_url && <span>🔗 {job.application_url}</span>}
-                    <span>{new Date(job.created_at).toLocaleDateString('sv-SE')}</span>
+                    {job.contact_email        && <span>✉️ {job.contact_email}</span>}
+                    {job.application_url      && <span>🔗 {job.application_url}</span>}
+                    {job.application_deadline && <span>📅 Sista dag: {new Date(job.application_deadline).toLocaleDateString('sv-SE')}</span>}
+                    <span>Publicerad: {new Date(job.created_at).toLocaleDateString('sv-SE')}</span>
                   </div>
                 </div>
                 <div className="flex gap-1 shrink-0">
