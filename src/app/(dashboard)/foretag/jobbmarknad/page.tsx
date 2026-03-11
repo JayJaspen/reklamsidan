@@ -44,6 +44,7 @@ export default function ForetagJobbmarknad() {
   const supabase = createClient()
 
   const [companyId, setCompanyId]     = useState<string | null>(null)
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null)
   const [categories, setCategories]   = useState<JobCategory[]>([])
   const [jobs, setJobs]               = useState<Job[]>([])
   const [loading, setLoading]         = useState(true)
@@ -61,17 +62,19 @@ export default function ForetagJobbmarknad() {
       if (!user) return
       setCompanyId(user.id)
 
-      const [{ data: cats }, { data: jobRows }] = await Promise.all([
+      const [{ data: cats }, { data: jobRows }, { data: company }] = await Promise.all([
         supabase.from('job_categories').select('id,name').order('sort_order'),
         supabase
           .from('jobs')
           .select('*')
           .eq('company_id', user.id)
           .order('created_at', { ascending: false }),
+        supabase.from('companies').select('logo_url').eq('id', user.id).single(),
       ])
 
-      if (cats)    setCategories(cats)
-      if (jobRows) setJobs(jobRows)
+      if (cats)            setCategories(cats)
+      if (jobRows)         setJobs(jobRows)
+      if (company?.logo_url) setCompanyLogo(company.logo_url)
       setLoading(false)
     })
   }, [])
@@ -406,6 +409,18 @@ export default function ForetagJobbmarknad() {
           {jobs.map(job => (
             <div key={job.id} className={`card p-5 transition ${!job.is_active ? 'opacity-60' : ''}`}>
               <div className="flex items-start justify-between gap-4">
+                {/* Company logo preview */}
+                {companyLogo ? (
+                  <img
+                    src={companyLogo}
+                    alt="Logotyp"
+                    className="h-12 w-12 rounded-lg object-contain border border-gray-100 bg-white p-1 shrink-0 mt-0.5"
+                  />
+                ) : (
+                  <div className="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center text-xs text-gray-400 shrink-0 mt-0.5">
+                    Logo
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <span className="text-base font-semibold text-gray-900">{job.title}</span>
