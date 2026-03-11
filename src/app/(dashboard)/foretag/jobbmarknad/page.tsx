@@ -112,6 +112,11 @@ export default function ForetagJobbmarknad() {
     setSaving(true)
     setError(null)
 
+    const rawUrl = form.applicationUrl.trim()
+    const normalizedUrl = rawUrl && !rawUrl.match(/^https?:\/\//i)
+      ? `https://${rawUrl}`
+      : rawUrl || null
+
     const payload = {
       company_id:      companyId,
       title:           form.title.trim(),
@@ -121,7 +126,7 @@ export default function ForetagJobbmarknad() {
       city:            form.isRemote ? null : (form.city || null),
       is_remote:       form.isRemote,
       contact_email:   form.contactEmail.trim() || null,
-      application_url: form.applicationUrl.trim() || null,
+      application_url: normalizedUrl,
       is_active:       true,
     }
 
@@ -286,9 +291,9 @@ export default function ForetagJobbmarknad() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-600">Länk till ansökan</label>
                 <input
-                  type="url"
+                  type="text"
                   className="input-field"
-                  placeholder="https://..."
+                  placeholder="www.företag.se/jobb"
                   value={form.applicationUrl}
                   onChange={e => setForm(f => ({ ...f, applicationUrl: e.target.value }))}
                 />

@@ -222,14 +222,11 @@ export default function B2CJobbmarknad() {
                     <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed mb-4">
                       {job.description}
                     </p>
-                    <div className="flex flex-wrap gap-3">
+                    <div className="flex flex-wrap items-center gap-4">
                       {job.contact_email && (
-                        <a
-                          href={`mailto:${job.contact_email}`}
-                          className="btn-secondary text-xs py-1.5 px-4"
-                        >
-                          ✉️ Skicka e-post
-                        </a>
+                        <span className="text-sm text-gray-700">
+                          ✉️ <span className="font-medium">{job.contact_email}</span>
+                        </span>
                       )}
                       {job.application_url && (
                         <a
