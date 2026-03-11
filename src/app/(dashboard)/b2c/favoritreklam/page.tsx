@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AdCard from '@/components/AdCard'
@@ -49,10 +51,11 @@ export default async function B2CFavoritreklam() {
   const { data: ads } = await adQuery
 
   // Job listings from companies where user has enabled notify_jobs
+  // Include description so users can read the full posting when expanded
   const { data: jobs } = jobNotifyIds.length > 0
     ? await supabase
         .from('jobs')
-        .select('id, title, county, city, is_remote, salary_min, salary_max, salary_period, application_deadline, contact_email, application_url, companies(public_name, logo_url)')
+        .select('id, title, description, county, city, is_remote, salary_min, salary_max, salary_period, application_deadline, contact_email, application_url, companies(public_name, logo_url)')
         .eq('is_active', true)
         .in('company_id', jobNotifyIds)
         .order('created_at', { ascending: false })
@@ -101,62 +104,78 @@ export default async function B2CFavoritreklam() {
                   : job.city ? `${job.city}, ${job.county}` : job.county
 
                 return (
-                  <div key={job.id} className="card p-4 flex items-center gap-4">
-                    {company?.logo_url ? (
-                      <img
-                        src={company.logo_url}
-                        alt={company.public_name}
-                        className="h-11 w-11 rounded-lg object-contain border border-gray-100 bg-white p-1 shrink-0"
-                      />
-                    ) : (
-                      <div className="h-11 w-11 rounded-lg bg-gray-100 flex items-center justify-center text-base font-bold text-gray-400 shrink-0">
-                        {company?.public_name?.[0]?.toUpperCase() ?? '?'}
-                      </div>
-                    )}
+                  /* <details>/<summary> gives native expand/collapse without any JS */
+                  <details key={job.id} className="card overflow-hidden group">
+                    <summary className="p-4 flex items-center gap-4 cursor-pointer list-none select-none">
+                      {/* Logo */}
+                      {company?.logo_url ? (
+                        <img
+                          src={company.logo_url}
+                          alt={company.public_name}
+                          className="h-11 w-11 rounded-lg object-contain border border-gray-100 bg-white p-1 shrink-0"
+                        />
+                      ) : (
+                        <div className="h-11 w-11 rounded-lg bg-gray-100 flex items-center justify-center text-base font-bold text-gray-400 shrink-0">
+                          {company?.public_name?.[0]?.toUpperCase() ?? '?'}
+                        </div>
+                      )}
 
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm truncate">{job.title}</p>
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-400 mt-0.5">
-                        {company?.public_name && (
-                          <span className="font-medium text-gray-500">{company.public_name}</span>
+                      {/* Title + meta */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm truncate">{job.title}</p>
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-400 mt-0.5">
+                          {company?.public_name && (
+                            <span className="font-medium text-gray-500">{company.public_name}</span>
+                          )}
+                          <span>•</span>
+                          <span>{location}</span>
+                          {(job.salary_min || job.salary_max) && (
+                            <>
+                              <span>•</span>
+                              <span>
+                                💰 {job.salary_min?.toLocaleString('sv-SE') ?? '?'}–{job.salary_max?.toLocaleString('sv-SE') ?? '?'} kr/{job.salary_period}
+                              </span>
+                            </>
+                          )}
+                          {job.application_deadline && (
+                            <>
+                              <span>•</span>
+                              <span className="text-orange-500 font-medium">
+                                📅 {new Date(job.application_deadline).toLocaleDateString('sv-SE')}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Expand indicator */}
+                      <span className="shrink-0 text-gray-400 text-xs whitespace-nowrap">Läs mer ▾</span>
+                    </summary>
+
+                    {/* Expanded: full description + contact/apply */}
+                    <div className="px-4 pb-4 border-t border-gray-100">
+                      {job.description && (
+                        <p className="text-sm text-gray-700 mt-3 whitespace-pre-wrap leading-relaxed">
+                          {job.description}
+                        </p>
+                      )}
+                      <div className="mt-4 flex flex-wrap gap-3 items-center">
+                        {job.contact_email && (
+                          <span className="text-xs text-gray-600">✉️ {job.contact_email}</span>
                         )}
-                        <span>•</span>
-                        <span>{location}</span>
-                        {(job.salary_min || job.salary_max) && (
-                          <>
-                            <span>•</span>
-                            <span>
-                              💰 {job.salary_min?.toLocaleString('sv-SE') ?? '?'}–{job.salary_max?.toLocaleString('sv-SE') ?? '?'} kr/{job.salary_period}
-                            </span>
-                          </>
-                        )}
-                        {job.application_deadline && (
-                          <>
-                            <span>•</span>
-                            <span className="text-orange-500 font-medium">
-                              📅 {new Date(job.application_deadline).toLocaleDateString('sv-SE')}
-                            </span>
-                          </>
+                        {job.application_url && (
+                          <a
+                            href={job.application_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-primary text-xs py-1.5 px-4"
+                          >
+                            Ansök här
+                          </a>
                         )}
                       </div>
                     </div>
-
-                    <div className="shrink-0 flex flex-col gap-1.5 items-end">
-                      {job.contact_email && (
-                        <span className="text-xs text-gray-600">✉️ {job.contact_email}</span>
-                      )}
-                      {job.application_url && (
-                        <a
-                          href={job.application_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-primary text-xs py-1 px-3"
-                        >
-                          Ansök
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                  </details>
                 )
               })}
             </div>

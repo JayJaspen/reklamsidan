@@ -1,6 +1,6 @@
 # Reklamsidan – Projektstatus
 
-> Senast uppdaterad: 2026-03-11 (Session 6)
+> Senast uppdaterad: 2026-03-11 (Session 7)
 > Stack: Next.js 15 (App Router) + Supabase (PostgreSQL + RLS + Storage) + Tailwind CSS
 
 ---
@@ -255,6 +255,15 @@ public/
 | 11 | Jobbannonser i Favoritreklam | `b2c/favoritreklam/page.tsx` | Sektion "💼 Jobbannonser från dina favoriter" visas om notify_jobs = true för ≥1 bolag |
 | 12 | Fix annonsräkning i All reklam | `b2c/all-reklam/page.tsx` + `20260311_fix_ad_count_published.sql` | RPC räknade opublicerade utkast – lade till is_published = TRUE filter |
 | 13 | Push-notiser: push_subscriptions tom | Diagnos | Auto-prompt tystas av webbläsaren om ingen interaktion. Lösning: klicka klock-ikonen manuellt. Nästa steg: mer synlig notis-banner |
+| 14 | Bugfix: Kan ej läsa jobbannonser i Favoritreklam | `b2c/favoritreklam/page.tsx` | Kortvy hade ingen expand-funktion. Ersatt med `<details>/<summary>` som visar full beskrivning + ansök-knapp |
+| 15 | Bugfix: PWA mobil visar blandat innehåll (Favoritreklam + Favoriter) | `b2c/favoritreklam/page.tsx` | Lade till `export const dynamic = 'force-dynamic'` – Next.js serverade cachad sida |
+
+### Session 7 (2026-03-11)
+
+| # | Uppgift | Fil(er) | Detalj |
+|---|---------|---------|--------|
+| 1 | Bugfix: Kan ej läsa jobbannonser i Favoritreklam | `b2c/favoritreklam/page.tsx` | Jobb visades i kompakt rad utan expandmöjlighet. Bytt till `<details>/<summary>` – klicka kortet för att läsa full beskrivning + ansök-knapp |
+| 2 | Bugfix: PWA mobil blandat innehåll (Favoritreklam + Favoriter) | `b2c/favoritreklam/page.tsx` | Saknades `export const dynamic = 'force-dynamic'` → Next.js cachade sidan och blandade innehåll. Tillagt. |
 
 ### Session 4 (2026-03-09)
 
