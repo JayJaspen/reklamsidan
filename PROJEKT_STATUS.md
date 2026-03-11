@@ -1,6 +1,6 @@
 # Reklamsidan – Projektstatus
 
-> Senast uppdaterad: 2026-03-10 (Session 5)
+> Senast uppdaterad: 2026-03-11 (Session 6)
 > Stack: Next.js 15 (App Router) + Supabase (PostgreSQL + RLS + Storage) + Tailwind CSS
 
 ---
@@ -100,7 +100,7 @@ ads                    – annonser (ad_type: 'b2c'|'b2b', valid_from/to, file_u
 saved_ads              – join: user_id + ad_id + saved_at TIMESTAMPTZ
 ad_reads               – join: ad_id + user_id + read_at + tab_source
                        – UNIQUE constraint: (ad_id, user_id, tab_source) – en rad per tab per användare
-user_favorites         – join: user_id + company_id (följande)
+user_favorites         – join: user_id + company_id + notify_jobs BOOLEAN DEFAULT false
 discarded_ads          – join: user_id + ad_id (bortvalda annonser)
 users_b2c              – B2C-profiler (gender, birth_year, county_id)
 users_b2b              – B2B-profiler (company_name, county_id)
@@ -132,6 +132,11 @@ Alla filer ligger i `supabase/migrations/`. Kör dem i Supabase Dashboard → SQ
 | `fix_ad_reads_unique_constraint.sql` | **Session 5** – byt UNIQUE-constraint på ad_reads | ✅ Körd |
 | `fix_companies_ad_count_filter.sql` | **Session 5** – RPC get_companies_with_ad_count + p_company_ids | ✅ Körd |
 | `add_is_published_to_ads.sql` | **Session 5** – is_published kolumn + ny active_ads-vy | ✅ Körd |
+| `20260311_jobbmarknad.sql` | **Session 6** – job_categories + jobs tabeller + RLS | ✅ Körd |
+| `20260311_jobs_salary.sql` | **Session 6** – salary_min, salary_max, salary_period på jobs | ✅ Körd |
+| `20260311_jobs_deadline.sql` | **Session 6** – application_deadline (DATE) på jobs | ✅ Körd |
+| `20260311_user_favorites_notify_jobs.sql` | **Session 6** – notify_jobs BOOLEAN på user_favorites | ⬜ Kör i Supabase |
+| `20260311_fix_ad_count_published.sql` | **Session 6** – RPC filterar nu på is_published = TRUE | ⬜ Kör i Supabase |
 
 ### `fix_saved_ads_and_category_rls.sql` (Session 4)
 
@@ -149,8 +154,9 @@ Löser två buggar:
 src/app/(dashboard)/
 ├── b2c/
 │   ├── all-reklam/page.tsx      – Bläddra bland B2C-annonser, filtrera på namn/kategori/län
-│   ├── favoriter/page.tsx       – Mina följda företag + sökning (auto-visar alla vid sidladdning)
-│   ├── favoritreklam/page.tsx   – Annonser från följda företag (client component)
+│   ├── favoriter/page.tsx       – Mina följda företag + notify_jobs-toggle per bolag + sökning
+│   ├── favoritreklam/page.tsx   – Annonser + jobbannonser från följda företag (server component)
+│   ├── jobbmarknad/page.tsx     – Jobbannonser med filter, visar ej förrän "Sök jobb" klickas
 │   └── sparad/page.tsx          – Sparad reklam (async/await + try/finally)
 ├── b2b/
 │   ├── all-reklam/page.tsx      – Bläddra bland B2B-annonser, filtrera på namn/kategori/län
@@ -161,6 +167,7 @@ src/app/(dashboard)/
 │   ├── statistik/page.tsx       – Statistik + aktiva annonser + prislista (inkl. årsavgift 499 kr)
 │   ├── skicka-reklam/page.tsx   – Skapa ny annons (målgruppsräknare med Set-union)
 │   ├── kategorier/page.tsx      – Lägg till kategorier
+│   ├── jobbmarknad/page.tsx     – Publicera/redigera/ta bort jobbannonser
 │   └── min-sida/page.tsx        – Profil + länval + målgrupp (B2C/B2B) + kategorier
 └── admin/
     ├── page.tsx                  – Översikt
@@ -179,7 +186,7 @@ src/lib/
 │   ├── client.ts                 – Klient-side Supabase-klient
 │   └── server.ts                 – Server-side Supabase-klient (cookies)
 ├── webpush.ts                    – Web Push (VAPID, AES-128-GCM) – Uint8Array<ArrayBuffer>
-└── utils.ts                      – SWEDISH_COUNTIES array (22 element)
+└── utils.ts                      – SWEDISH_COUNTIES (22), JOB_COUNTIES (21), CITIES_BY_COUNTY
 
 public/
 ├── logo.png                      – Beskuren logotyp (853×254, 20px marginal)
@@ -231,6 +238,24 @@ public/
 | 10 | Push-notiser auto-aktiveras vid sidladdning | `NotificationPermission.tsx` | `Notification.requestPermission()` triggas automatiskt efter 1,5 s om tillstånd är 'default'; re-prenumererar tyst om 'granted' men ingen aktiv sub |
 | 11 | active_ads-vy återskapad med JOIN | Supabase SQL (direkt) | `DROP VIEW` + `CREATE VIEW` med `JOIN companies` + `is_published = TRUE` |
 
+### Session 6 (2026-03-11)
+
+| # | Uppgift | Fil(er) | Detalj |
+|---|---------|---------|--------|
+| 1 | Jobbmarknad för företag | `foretag/jobbmarknad/page.tsx` (ny) | Publicera/redigera/ta bort jobbannonser med titel, beskrivning, kategori, lön, plats/distans, sista ansökningsdag, kontakt |
+| 2 | Jobbmarknad för B2C | `b2c/jobbmarknad/page.tsx` (ny) | Filtrera jobb på kategori/län/stad – visar INGET förrän "Sök jobb" klickas |
+| 3 | Jobbmarknad-flik i navigation | `foretag/layout.tsx` + `b2c/layout.tsx` | 💼 Jobbmarknad tillagd i båda naverna |
+| 4 | JOB_COUNTIES + CITIES_BY_COUNTY | `src/lib/utils.ts` | 21 svenska län + städer per län |
+| 5 | Supabase: job_categories + jobs | `20260311_jobbmarknad.sql` | 14 kategorier, RLS-policies |
+| 6 | Lönespann i jobbannonser | `foretag/jobbmarknad/` + `b2c/jobbmarknad/` + `20260311_jobs_salary.sql` | salary_min/max/period, synligt direkt i kortvy |
+| 7 | Sista ansökningsdatum | `foretag/jobbmarknad/` + `b2c/jobbmarknad/` + `20260311_jobs_deadline.sql` | application_deadline (DATE), synligt i orange i kortvy |
+| 8 | URL-normalisering i jobbformulär | `foretag/jobbmarknad/page.tsx` | Lägger till https:// automatiskt om det saknas |
+| 9 | E-post som text (ej länk) i B2C | `b2c/jobbmarknad/page.tsx` | Kandidater ser e-postadressen som ren text |
+| 10 | notify_jobs-toggle i Favoriter | `b2c/favoriter/page.tsx` + `20260311_user_favorites_notify_jobs.sql` | Per favoritföretag: slå på/av jobbannonser i Favoritreklam |
+| 11 | Jobbannonser i Favoritreklam | `b2c/favoritreklam/page.tsx` | Sektion "💼 Jobbannonser från dina favoriter" visas om notify_jobs = true för ≥1 bolag |
+| 12 | Fix annonsräkning i All reklam | `b2c/all-reklam/page.tsx` + `20260311_fix_ad_count_published.sql` | RPC räknade opublicerade utkast – lade till is_published = TRUE filter |
+| 13 | Push-notiser: push_subscriptions tom | Diagnos | Auto-prompt tystas av webbläsaren om ingen interaktion. Lösning: klicka klock-ikonen manuellt. Nästa steg: mer synlig notis-banner |
+
 ### Session 4 (2026-03-09)
 
 | # | Uppgift | Fil(er) | Detalj |
@@ -278,19 +303,51 @@ Annars deployas aldrig ändringarna till Vercel, även om du trycker "push" i et
 
 ---
 
-## Senaste git-commits
+## Senaste git-commits (Session 6)
 
 ```
-c840b2b Add cancel service section to all min-sida pages and auto-enable push notifications
-75112d1 Update logo: darker blue symbol with sharper edges
-ca3917e Change primary color to purple/violet - premium feel
-4d878c6 Change primary color from blue to amber
-f259af0 Fix statistik: filter out unpublished ads after avpublicera
-723e70c Fix unpublish: use is_published flag instead of date manipulation
-21927ec Fix template literal escape in audience count
-d577551 Fix audience count (birth_year) and add unpublish button
-9f1e1d9 Fix push logging, stale subscriptions and N+1 query in all-reklam
-40fc157 Fix ad_reads billing: charge per tab_source, not per user+ad
+feat: add application deadline to job listings
+feat: add salary range to job listings
+fix: normalize application URL, show email as plain text in job listings
+feat: job listings show collapsed cards, expand on click to reveal description
+fix: correct companies join type in b2c jobbmarknad
+feat: add Jobbmarknad feature for B2C and company dashboards
+fix: jobbmarknad manual search, favorites job notify toggle, ad count published filter
+```
+
+### Commits att köra (ej pushade ännu om session avbröts):
+```powershell
+git add "src/app/(dashboard)/b2c/jobbmarknad/page.tsx" `
+        "src/app/(dashboard)/b2c/favoriter/page.tsx" `
+        "src/app/(dashboard)/b2c/favoritreklam/page.tsx" `
+        supabase/migrations/20260311_user_favorites_notify_jobs.sql `
+        supabase/migrations/20260311_fix_ad_count_published.sql `
+        PROJEKT_STATUS.md
+git commit -m "fix: jobbmarknad manual search, favorites job notify toggle, ad count published filter"
+git push
+```
+
+### SQL att köra i Supabase (ej körda):
+```sql
+-- 1. notify_jobs-kolumn
+ALTER TABLE user_favorites
+  ADD COLUMN IF NOT EXISTS notify_jobs BOOLEAN NOT NULL DEFAULT false;
+
+-- 2. Fix annonsräkning
+CREATE OR REPLACE FUNCTION get_companies_with_ad_count(
+  p_type TEXT, p_company_ids UUID[] DEFAULT NULL, p_date DATE DEFAULT CURRENT_DATE
+) RETURNS TABLE (id UUID, public_name TEXT, logo_url TEXT, ad_count BIGINT)
+LANGUAGE SQL STABLE SECURITY DEFINER AS $$
+  SELECT c.id, c.public_name, c.logo_url, COUNT(a.id) AS ad_count
+  FROM companies c
+  LEFT JOIN ads a ON a.company_id = c.id AND a.ad_type = p_type::ad_type
+    AND a.valid_from <= p_date AND a.valid_to >= p_date AND a.is_published = TRUE
+  WHERE c.is_active = TRUE
+    AND CASE WHEN p_type = 'b2c' THEN c.sends_b2c ELSE c.sends_b2b END = TRUE
+    AND (p_company_ids IS NULL OR c.id = ANY(p_company_ids))
+  GROUP BY c.id, c.public_name, c.logo_url ORDER BY c.public_name;
+$$;
+GRANT EXECUTE ON FUNCTION get_companies_with_ad_count(TEXT, UUID[], DATE) TO authenticated;
 ```
 
 ---
