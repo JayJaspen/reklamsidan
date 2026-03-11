@@ -15,6 +15,9 @@ type Job = {
   county: string | null
   city: string | null
   is_remote: boolean
+  salary_min: number | null
+  salary_max: number | null
+  salary_period: string
   contact_email: string | null
   application_url: string | null
   is_active: boolean
@@ -28,6 +31,9 @@ const EMPTY_FORM = {
   county: '',
   city: '',
   isRemote: false,
+  salaryMin: '',
+  salaryMax: '',
+  salaryPeriod: 'månad',
   contactEmail: '',
   applicationUrl: '',
 }
@@ -82,6 +88,9 @@ export default function ForetagJobbmarknad() {
       county:         job.is_remote ? '' : (job.county ?? ''),
       city:           job.is_remote ? '' : (job.city ?? ''),
       isRemote:       job.is_remote,
+      salaryMin:      job.salary_min != null ? String(job.salary_min) : '',
+      salaryMax:      job.salary_max != null ? String(job.salary_max) : '',
+      salaryPeriod:   job.salary_period ?? 'månad',
       contactEmail:   job.contact_email ?? '',
       applicationUrl: job.application_url ?? '',
     })
@@ -125,6 +134,9 @@ export default function ForetagJobbmarknad() {
       county:          form.isRemote ? null : (form.county || null),
       city:            form.isRemote ? null : (form.city || null),
       is_remote:       form.isRemote,
+      salary_min:      form.salaryMin ? parseInt(form.salaryMin) : null,
+      salary_max:      form.salaryMax ? parseInt(form.salaryMax) : null,
+      salary_period:   form.salaryPeriod,
       contact_email:   form.contactEmail.trim() || null,
       application_url: normalizedUrl,
       is_active:       true,
@@ -231,6 +243,38 @@ export default function ForetagJobbmarknad() {
               </select>
             </div>
 
+            {/* Salary */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-600">Lönespann (valfritt)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  className="input-field"
+                  placeholder="Från (kr)"
+                  min={0}
+                  value={form.salaryMin}
+                  onChange={e => setForm(f => ({ ...f, salaryMin: e.target.value }))}
+                />
+                <span className="text-gray-400 shrink-0">–</span>
+                <input
+                  type="number"
+                  className="input-field"
+                  placeholder="Till (kr)"
+                  min={0}
+                  value={form.salaryMax}
+                  onChange={e => setForm(f => ({ ...f, salaryMax: e.target.value }))}
+                />
+                <select
+                  className="input-field w-auto shrink-0"
+                  value={form.salaryPeriod}
+                  onChange={e => setForm(f => ({ ...f, salaryPeriod: e.target.value }))}
+                >
+                  <option value="månad">/ mån</option>
+                  <option value="år">/ år</option>
+                </select>
+              </div>
+            </div>
+
             {/* Remote / County / City */}
             <div>
               <label className="mb-2 flex items-center gap-2 cursor-pointer">
@@ -335,6 +379,11 @@ export default function ForetagJobbmarknad() {
                       : <span className="badge badge-yellow">{job.city ? `${job.city}, ${job.county}` : job.county}</span>
                     }
                   </div>
+                  {(job.salary_min || job.salary_max) && (
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      💰 {job.salary_min ? job.salary_min.toLocaleString('sv-SE') : '?'} – {job.salary_max ? job.salary_max.toLocaleString('sv-SE') : '?'} kr/{job.salary_period}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-500 line-clamp-2 mt-1">{job.description}</p>
                   <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-400">
                     {job.contact_email   && <span>✉️ {job.contact_email}</span>}

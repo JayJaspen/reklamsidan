@@ -15,6 +15,9 @@ type Job = {
   county: string | null
   city: string | null
   is_remote: boolean
+  salary_min: number | null
+  salary_max: number | null
+  salary_period: string
   contact_email: string | null
   application_url: string | null
   created_at: string
@@ -41,7 +44,7 @@ export default function B2CJobbmarknad() {
     setSearching(true)
     let query = supabase
       .from('jobs')
-      .select('id,title,description,category_id,county,city,is_remote,contact_email,application_url,created_at,companies(public_name,logo_url)')
+      .select('id,title,description,category_id,county,city,is_remote,salary_min,salary_max,salary_period,contact_email,application_url,created_at,companies(public_name,logo_url)')
       .eq('is_active', true)
       .order('created_at', { ascending: false })
 
@@ -203,8 +206,13 @@ export default function B2CJobbmarknad() {
                         : <span className="badge badge-yellow">{location}</span>
                       }
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-400">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-400 mt-0.5">
                       {company?.public_name && <span className="font-medium text-gray-500">{company.public_name}</span>}
+                      {(job.salary_min || job.salary_max) && (
+                        <span className="text-gray-500">
+                          💰 {job.salary_min ? job.salary_min.toLocaleString('sv-SE') : '?'}–{job.salary_max ? job.salary_max.toLocaleString('sv-SE') : '?'} kr/{job.salary_period}
+                        </span>
+                      )}
                       <span>•</span>
                       <span>{new Date(job.created_at).toLocaleDateString('sv-SE')}</span>
                     </div>
