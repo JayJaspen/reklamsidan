@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { JOB_COUNTIES, CITIES_BY_COUNTY } from '@/lib/utils'
-import { Loader2, Plus, Pencil, Trash2, CheckCircle, X } from 'lucide-react'
+import { Loader2, Plus, Pencil, Trash2, CheckCircle, X, Eye, EyeOff, Info } from 'lucide-react'
 
 type JobCategory = { id: number; name: string }
 
@@ -43,17 +43,18 @@ const EMPTY_FORM = {
 export default function ForetagJobbmarknad() {
   const supabase = createClient()
 
-  const [companyId, setCompanyId]   = useState<string | null>(null)
-  const [categories, setCategories] = useState<JobCategory[]>([])
-  const [jobs, setJobs]             = useState<Job[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [showForm, setShowForm]     = useState(false)
-  const [editId, setEditId]         = useState<number | null>(null)
-  const [saving, setSaving]         = useState(false)
-  const [saved, setSaved]           = useState(false)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
-  const [form, setForm]             = useState(EMPTY_FORM)
-  const [error, setError]           = useState<string | null>(null)
+  const [companyId, setCompanyId]     = useState<string | null>(null)
+  const [categories, setCategories]   = useState<JobCategory[]>([])
+  const [jobs, setJobs]               = useState<Job[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [showForm, setShowForm]       = useState(false)
+  const [editId, setEditId]           = useState<number | null>(null)
+  const [saving, setSaving]           = useState(false)
+  const [saved, setSaved]             = useState(false)
+  const [deletingId, setDeletingId]   = useState<number | null>(null)
+  const [togglingId, setTogglingId]   = useState<number | null>(null)
+  const [form, setForm]               = useState(EMPTY_FORM)
+  const [error, setError]             = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -170,8 +171,20 @@ export default function ForetagJobbmarknad() {
     setDeletingId(null)
   }
 
-  const availableCities = form.county ? (CITIES_BY_COUNTY[form.county] ?? []) : []
+  async function handleToggleActive(job: Job) {
+    setTogglingId(job.id)
+    const newActive = !job.is_active
+    const { error: err } = await supabase
+      .from('jobs')
+      .update({ is_active: newActive })
+      .eq('id', job.id)
+    if (!err) {
+      setJobs(prev => prev.map(j => j.id === job.id ? { ...j, is_active: newActive } : j))
+    }
+    setTogglingId(null)
+  }
 
+  const availableCities = form.county ? (CITIES_BY_COUNTY[form.county] ?? []) : []
   const catName = (id: number) => categories.find(c => c.id === id)?.name ?? ''
 
   if (loading) return <div className="py-20 text-center text-gray-400">Laddar...</div>
@@ -179,7 +192,7 @@ export default function ForetagJobbmarknad() {
   return (
     <div className="max-w-3xl">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Jobbmarknad</h1>
           <p className="text-sm text-gray-500">Publicera och hantera dina jobbannonser</p>
@@ -196,7 +209,15 @@ export default function ForetagJobbmarknad() {
         </div>
       </div>
 
-      {/* Form modal / inline */}
+      {/* Pricing info */}
+      <div className="mb-6 flex items-start gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
+        <p>
+          Varje jobbannons kostar <strong>1 490 kr</strong> (exkl. moms) och debiteras på din nästkommande kvartalsfaktura.
+        </p>
+      </div>
+
+      {/* Form */}
       {showForm && (
         <div className="mb-6 card p-6">
           <div className="mb-4 flex items-center justify-between">
@@ -383,7 +404,7 @@ export default function ForetagJobbmarknad() {
       ) : (
         <div className="space-y-3">
           {jobs.map(job => (
-            <div key={job.id} className="card p-5">
+            <div key={job.id} className={`card p-5 transition ${!job.is_active ? 'opacity-60' : ''}`}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
@@ -393,6 +414,9 @@ export default function ForetagJobbmarknad() {
                       ? <span className="badge badge-green">Distans</span>
                       : <span className="badge badge-yellow">{job.city ? `${job.city}, ${job.county}` : job.county}</span>
                     }
+                    {!job.is_active && (
+                      <span className="badge badge-red">Avpublicerad</span>
+                    )}
                   </div>
                   {(job.salary_min || job.salary_max) && (
                     <p className="text-sm text-gray-500 mt-0.5">
@@ -407,7 +431,28 @@ export default function ForetagJobbmarknad() {
                     <span>Publicerad: {new Date(job.created_at).toLocaleDateString('sv-SE')}</span>
                   </div>
                 </div>
+
+                {/* Action buttons */}
                 <div className="flex gap-1 shrink-0">
+                  {/* Avpublicera / Återpublicera */}
+                  <button
+                    onClick={() => handleToggleActive(job)}
+                    disabled={togglingId === job.id}
+                    className={`p-2 rounded-lg transition disabled:opacity-40 ${
+                      job.is_active
+                        ? 'text-gray-400 hover:text-orange-600 hover:bg-orange-50'
+                        : 'text-orange-500 hover:text-green-600 hover:bg-green-50'
+                    }`}
+                    title={job.is_active ? 'Avpublicera' : 'Återpublicera'}
+                  >
+                    {togglingId === job.id
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : job.is_active
+                        ? <EyeOff className="h-4 w-4" />
+                        : <Eye className="h-4 w-4" />
+                    }
+                  </button>
+                  {/* Redigera */}
                   <button
                     onClick={() => openEdit(job)}
                     className="p-2 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition"
@@ -415,6 +460,7 @@ export default function ForetagJobbmarknad() {
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
+                  {/* Ta bort */}
                   <button
                     onClick={() => handleDelete(job.id)}
                     disabled={deletingId === job.id}

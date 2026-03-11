@@ -137,6 +137,7 @@ Alla filer ligger i `supabase/migrations/`. Kör dem i Supabase Dashboard → SQ
 | `20260311_jobs_deadline.sql` | **Session 6** – application_deadline (DATE) på jobs | ✅ Körd |
 | `20260311_user_favorites_notify_jobs.sql` | **Session 6** – notify_jobs BOOLEAN på user_favorites | ⬜ Kör i Supabase |
 | `20260311_fix_ad_count_published.sql` | **Session 6** – RPC filterar nu på is_published = TRUE | ⬜ Kör i Supabase |
+| `20260311_jobs_is_billed.sql` | **Session 7** – is_billed BOOLEAN på jobs (faktureringsspårning) | ⬜ Kör i Supabase |
 
 ### `fix_saved_ads_and_category_rls.sql` (Session 4)
 
@@ -264,6 +265,9 @@ public/
 |---|---------|---------|--------|
 | 1 | Bugfix: Kan ej läsa jobbannonser i Favoritreklam | `b2c/favoritreklam/page.tsx` | Jobb visades i kompakt rad utan expandmöjlighet. Bytt till `<details>/<summary>` – klicka kortet för att läsa full beskrivning + ansök-knapp |
 | 2 | Bugfix: PWA mobil blandat innehåll (Favoritreklam + Favoriter) | `b2c/favoritreklam/page.tsx` | Saknades `export const dynamic = 'force-dynamic'` → Next.js cachade sidan och blandade innehåll. Tillagt. |
+| 3 | Prisinformation i Jobbmarknad | `foretag/jobbmarknad/page.tsx` | Infobanner: "1 490 kr exkl. moms – debiteras på nästkommande kvartalsfaktura" |
+| 4 | Avpublicera/återpublicera jobbannons | `foretag/jobbmarknad/page.tsx` | EyeOff/Eye-knapp per annons, "Avpublicerad"-badge, `is_active`-toggle |
+| 5 | Jobbannonser i admin Fakturering | `admin/fakturering/page.tsx` + `20260311_jobs_is_billed.sql` | Separat tabell för jobbannonser (1 490 kr/st), rubrik ingår i Excel-export och arkivering markerar `is_billed = true` |
 
 ### Session 4 (2026-03-09)
 
