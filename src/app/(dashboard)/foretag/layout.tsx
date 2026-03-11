@@ -8,6 +8,7 @@ const FORETAG_TABS = [
   { href: '/foretag/statistik',      label: '📊 Statistik' },
   { href: '/foretag/skicka-reklam',  label: '📤 Skicka reklam' },
   { href: '/foretag/kategorier',     label: '🏷️ Kategorier' },
+  { href: '/foretag/jobbmarknad',    label: '💼 Jobbmarknad' },
   { href: '/foretag/min-sida',       label: '⚙️ Min sida' },
 ]
 

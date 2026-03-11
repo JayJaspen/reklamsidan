@@ -1,0 +1,367 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { JOB_COUNTIES, CITIES_BY_COUNTY } from '@/lib/utils'
+import { Loader2, Plus, Pencil, Trash2, CheckCircle, X } from 'lucide-react'
+
+type JobCategory = { id: number; name: string }
+
+type Job = {
+  id: number
+  title: string
+  description: string
+  category_id: number
+  county: string | null
+  city: string | null
+  is_remote: boolean
+  contact_email: string | null
+  application_url: string | null
+  is_active: boolean
+  created_at: string
+}
+
+const EMPTY_FORM = {
+  title: '',
+  description: '',
+  categoryId: '',
+  county: '',
+  city: '',
+  isRemote: false,
+  contactEmail: '',
+  applicationUrl: '',
+}
+
+export default function ForetagJobbmarknad() {
+  const supabase = createClient()
+
+  const [companyId, setCompanyId]   = useState<string | null>(null)
+  const [categories, setCategories] = useState<JobCategory[]>([])
+  const [jobs, setJobs]             = useState<Job[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [showForm, setShowForm]     = useState(false)
+  const [editId, setEditId]         = useState<number | null>(null)
+  const [saving, setSaving]         = useState(false)
+  const [saved, setSaved]           = useState(false)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [form, setForm]             = useState(EMPTY_FORM)
+  const [error, setError]           = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      setCompanyId(user.id)
+
+      const [{ data: cats }, { data: jobRows }] = await Promise.all([
+        supabase.from('job_categories').select('id,name').order('sort_order'),
+        supabase
+          .from('jobs')
+          .select('*')
+          .eq('company_id', user.id)
+          .order('created_at', { ascending: false }),
+      ])
+
+      if (cats)    setCategories(cats)
+      if (jobRows) setJobs(jobRows)
+      setLoading(false)
+    })
+  }, [])
+
+  function openNew() {
+    setForm(EMPTY_FORM)
+    setEditId(null)
+    setError(null)
+    setShowForm(true)
+  }
+
+  function openEdit(job: Job) {
+    setForm({
+      title:          job.title,
+      description:    job.description,
+      categoryId:     String(job.category_id),
+      county:         job.is_remote ? '' : (job.county ?? ''),
+      city:           job.is_remote ? '' : (job.city ?? ''),
+      isRemote:       job.is_remote,
+      contactEmail:   job.contact_email ?? '',
+      applicationUrl: job.application_url ?? '',
+    })
+    setEditId(job.id)
+    setError(null)
+    setShowForm(true)
+  }
+
+  function closeForm() {
+    setShowForm(false)
+    setEditId(null)
+    setError(null)
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!companyId) return
+
+    if (!form.title.trim()) { setError('Ange en jobbtitel.'); return }
+    if (!form.description.trim()) { setError('Ange en jobbeskrivning.'); return }
+    if (!form.categoryId) { setError('Välj en kategori.'); return }
+    if (!form.isRemote && !form.county) { setError('Välj ett län eller markera Distans.'); return }
+    if (!form.contactEmail.trim() && !form.applicationUrl.trim()) {
+      setError('Ange antingen e-postadress eller ansökningslänk.')
+      return
+    }
+
+    setSaving(true)
+    setError(null)
+
+    const payload = {
+      company_id:      companyId,
+      title:           form.title.trim(),
+      description:     form.description.trim(),
+      category_id:     parseInt(form.categoryId),
+      county:          form.isRemote ? null : (form.county || null),
+      city:            form.isRemote ? null : (form.city || null),
+      is_remote:       form.isRemote,
+      contact_email:   form.contactEmail.trim() || null,
+      application_url: form.applicationUrl.trim() || null,
+      is_active:       true,
+    }
+
+    if (editId) {
+      const { error: err } = await supabase.from('jobs').update(payload).eq('id', editId)
+      if (err) { setError('Kunde inte spara: ' + err.message); setSaving(false); return }
+      setJobs(prev => prev.map(j => j.id === editId ? { ...j, ...payload } as Job : j))
+    } else {
+      const { data, error: err } = await supabase.from('jobs').insert(payload).select().single()
+      if (err) { setError('Kunde inte spara: ' + err.message); setSaving(false); return }
+      if (data) setJobs(prev => [data as Job, ...prev])
+    }
+
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 3000)
+    closeForm()
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm('Är du säker på att du vill ta bort detta jobb?')) return
+    setDeletingId(id)
+    await supabase.from('jobs').delete().eq('id', id)
+    setJobs(prev => prev.filter(j => j.id !== id))
+    setDeletingId(null)
+  }
+
+  const availableCities = form.county ? (CITIES_BY_COUNTY[form.county] ?? []) : []
+
+  const catName = (id: number) => categories.find(c => c.id === id)?.name ?? ''
+
+  if (loading) return <div className="py-20 text-center text-gray-400">Laddar...</div>
+
+  return (
+    <div className="max-w-3xl">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Jobbmarknad</h1>
+          <p className="text-sm text-gray-500">Publicera och hantera dina jobbannonser</p>
+        </div>
+        <div className="flex items-center gap-3">
+          {saved && (
+            <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+              <CheckCircle className="h-4 w-4" /> Sparat!
+            </span>
+          )}
+          <button onClick={openNew} className="btn-primary">
+            <Plus className="h-4 w-4" /> Ny annons
+          </button>
+        </div>
+      </div>
+
+      {/* Form modal / inline */}
+      {showForm && (
+        <div className="mb-6 card p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-gray-800">
+              {editId ? 'Redigera annons' : 'Ny jobbannons'}
+            </h2>
+            <button onClick={closeForm} className="text-gray-400 hover:text-gray-600">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleSave} className="space-y-4">
+            {/* Title */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-600">Jobbtitel *</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="t.ex. Frontendutvecklare"
+                value={form.title}
+                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-600">Beskrivning *</label>
+              <textarea
+                className="input-field min-h-[120px] resize-y"
+                placeholder="Beskriv tjänsten, krav och önskemål..."
+                value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              />
+            </div>
+
+            {/* Category */}
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-600">Kategori *</label>
+              <select
+                className="input-field"
+                value={form.categoryId}
+                onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
+              >
+                <option value="">Välj kategori</option>
+                {categories.map(c => (
+                  <option key={c.id} value={String(c.id)}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Remote / County / City */}
+            <div>
+              <label className="mb-2 flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-primary-600"
+                  checked={form.isRemote}
+                  onChange={e => setForm(f => ({ ...f, isRemote: e.target.checked, county: '', city: '' }))}
+                />
+                <span className="text-sm font-medium text-gray-600">Distansarbete (inget kontor krävs)</span>
+              </label>
+            </div>
+
+            {!form.isRemote && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-600">Län *</label>
+                  <select
+                    className="input-field"
+                    value={form.county}
+                    onChange={e => setForm(f => ({ ...f, county: e.target.value, city: '' }))}
+                  >
+                    <option value="">Välj län</option>
+                    {JOB_COUNTIES.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-600">Stad</label>
+                  <select
+                    className="input-field"
+                    value={form.city}
+                    onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                    disabled={!form.county}
+                  >
+                    <option value="">Välj stad</option>
+                    {availableCities.map(city => (
+                      <option key={city} value={city}>{city}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {/* Contact */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-600">Kontakt-e-post</label>
+                <input
+                  type="email"
+                  className="input-field"
+                  placeholder="jobb@företag.se"
+                  value={form.contactEmail}
+                  onChange={e => setForm(f => ({ ...f, contactEmail: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-600">Länk till ansökan</label>
+                <input
+                  type="url"
+                  className="input-field"
+                  placeholder="https://..."
+                  value={form.applicationUrl}
+                  onChange={e => setForm(f => ({ ...f, applicationUrl: e.target.value }))}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-400">Ange minst ett av ovanstående kontaktalternativ.</p>
+
+            {error && <p className="text-sm text-red-600 font-medium">{error}</p>}
+
+            <div className="flex gap-3 pt-2">
+              <button type="submit" disabled={saving} className="btn-primary">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {saving ? 'Sparar...' : editId ? 'Spara ändringar' : 'Publicera annons'}
+              </button>
+              <button type="button" onClick={closeForm} className="btn-secondary">Avbryt</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Job list */}
+      {jobs.length === 0 ? (
+        <div className="empty-state">
+          <p className="text-4xl mb-3">💼</p>
+          <p className="text-base font-semibold text-gray-700">Inga jobbannonser än</p>
+          <p className="text-sm text-gray-500 mt-1">Klicka på "Ny annons" för att publicera din första jobbannons.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {jobs.map(job => (
+            <div key={job.id} className="card p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <span className="text-base font-semibold text-gray-900">{job.title}</span>
+                    <span className="badge badge-blue">{catName(job.category_id)}</span>
+                    {job.is_remote
+                      ? <span className="badge badge-green">Distans</span>
+                      : <span className="badge badge-yellow">{job.city ? `${job.city}, ${job.county}` : job.county}</span>
+                    }
+                  </div>
+                  <p className="text-sm text-gray-500 line-clamp-2 mt-1">{job.description}</p>
+                  <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-400">
+                    {job.contact_email   && <span>✉️ {job.contact_email}</span>}
+                    {job.application_url && <span>🔗 {job.application_url}</span>}
+                    <span>{new Date(job.created_at).toLocaleDateString('sv-SE')}</span>
+                  </div>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => openEdit(job)}
+                    className="p-2 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition"
+                    title="Redigera"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(job.id)}
+                    disabled={deletingId === job.id}
+                    className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition disabled:opacity-40"
+                    title="Ta bort"
+                  >
+                    {deletingId === job.id
+                      ? <Loader2 className="h-4 w-4 animate-spin" />
+                      : <Trash2 className="h-4 w-4" />
+                    }
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

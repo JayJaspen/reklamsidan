@@ -30,6 +30,34 @@ export const SWEDISH_COUNTIES = [
   'E-handlare',
 ] as const
 
+/** The 21 real Swedish counties (index 1–21) used for job listings */
+export const JOB_COUNTIES = SWEDISH_COUNTIES.slice(0, 21) as readonly string[]
+
+/** Cities per county (keyed by county name) */
+export const CITIES_BY_COUNTY: Record<string, string[]> = {
+  'Blekinge län':         ['Karlskrona', 'Karlshamn', 'Ronneby', 'Sölvesborg', 'Olofström'],
+  'Dalarnas län':         ['Falun', 'Borlänge', 'Mora', 'Ludvika', 'Avesta', 'Leksand', 'Malung', 'Säter'],
+  'Gävleborgs län':       ['Gävle', 'Sandviken', 'Hudiksvall', 'Bollnäs', 'Söderhamn', 'Ljusdal'],
+  'Gotlands län':         ['Visby'],
+  'Hallands län':         ['Halmstad', 'Varberg', 'Falkenberg', 'Kungsbacka', 'Laholm', 'Ängelholm'],
+  'Jämtlands län':        ['Östersund', 'Åre', 'Krokom', 'Strömsund', 'Bräcke'],
+  'Jönköpings län':       ['Jönköping', 'Huskvarna', 'Nässjö', 'Värnamo', 'Eksjö', 'Tranås', 'Vetlanda'],
+  'Kalmar län':           ['Kalmar', 'Oskarshamn', 'Västervik', 'Nybro', 'Vimmerby', 'Borgholm'],
+  'Kronobergs län':       ['Växjö', 'Ljungby', 'Älmhult', 'Markaryd', 'Tingsryd'],
+  'Norrbottens län':      ['Luleå', 'Kiruna', 'Boden', 'Piteå', 'Gällivare', 'Haparanda', 'Kalix'],
+  'Skåne län':            ['Malmö', 'Helsingborg', 'Kristianstad', 'Lund', 'Landskrona', 'Ängelholm', 'Trelleborg', 'Ystad', 'Hässleholm', 'Eslöv', 'Vellinge'],
+  'Stockholms län':       ['Stockholm', 'Solna', 'Sundbyberg', 'Huddinge', 'Nacka', 'Sollentuna', 'Järfälla', 'Botkyrka', 'Haninge', 'Täby', 'Tyresö', 'Lidingö', 'Danderyd', 'Sigtuna', 'Norrtälje', 'Upplands Väsby', 'Vallentuna'],
+  'Södermanlands län':    ['Eskilstuna', 'Nyköping', 'Katrineholm', 'Strängnäs', 'Oxelösund', 'Flen', 'Gnesta'],
+  'Uppsala län':          ['Uppsala', 'Enköping', 'Tierp', 'Östhammar', 'Knivsta', 'Håbo'],
+  'Värmlands län':        ['Karlstad', 'Kristinehamn', 'Filipstad', 'Arvika', 'Säffle', 'Hagfors', 'Sunne'],
+  'Västerbottens län':    ['Umeå', 'Skellefteå', 'Lycksele', 'Vilhelmina', 'Storuman'],
+  'Västernorrlands län':  ['Sundsvall', 'Härnösand', 'Örnsköldsvik', 'Kramfors', 'Sollefteå'],
+  'Västmanlands län':     ['Västerås', 'Köping', 'Sala', 'Fagersta', 'Arboga', 'Hallstahammar', 'Norberg'],
+  'Västra Götalands län': ['Göteborg', 'Borås', 'Mölndal', 'Trollhättan', 'Skövde', 'Uddevalla', 'Halmstad', 'Vänersborg', 'Kungsbacka', 'Lidköping', 'Alingsås', 'Lerum', 'Stenungsund', 'Kungälv', 'Partille', 'Härryda', 'Mark'],
+  'Örebro län':           ['Örebro', 'Karlskoga', 'Kumla', 'Lekeberg', 'Hallsberg', 'Degerfors', 'Hällefors'],
+  'Östergötlands län':    ['Linköping', 'Norrköping', 'Motala', 'Mjölby', 'Söderköping', 'Åtvidaberg', 'Finspång', 'Vadstena'],
+}
+
 export const AGE_GROUPS = [
   { value: '18-25', label: '18–25 år' },
   { value: '26-35', label: '26–35 år' },
