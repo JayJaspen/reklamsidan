@@ -5,6 +5,30 @@ import { createClient } from '@/lib/supabase/client'
 import { Star, Search, Building2, Globe } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
+const ALPHABET = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','Å','Ä','Ö']
+
+function AlphabetBar({ active, onChange }: { active: string; onChange: (l: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-0.5 mb-4">
+      <button
+        onClick={() => onChange('')}
+        className={`rounded px-2 py-1 text-xs font-semibold transition ${active === '' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+      >
+        Alla
+      </button>
+      {ALPHABET.map(l => (
+        <button
+          key={l}
+          onClick={() => onChange(active === l ? '' : l)}
+          className={`rounded px-2 py-1 text-xs font-semibold transition ${active === l ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 type Company = {
   id: string
   public_name: string
@@ -33,8 +57,13 @@ export default function B2CFavoriter() {
   const [searchResults, setSearchResults] = useState<Company[]>([])
   const [searching, setSearching] = useState(false)
 
+  const [activeLetter, setActiveLetter] = useState('')
+
   // Set av company-id:s som följs (för snabb lookup)
   const followedIds = useMemo(() => new Set(favorites.map(f => f.id)), [favorites])
+
+  const filteredFavorites  = activeLetter ? favorites.filter(c => c.public_name.toUpperCase().startsWith(activeLetter)) : favorites
+  const filteredSearchResults = activeLetter ? searchResults.filter(c => c.public_name.toUpperCase().startsWith(activeLetter)) : searchResults
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -234,14 +263,18 @@ export default function B2CFavoriter() {
           </span>
         </div>
 
+        <AlphabetBar active={activeLetter} onChange={setActiveLetter} />
+
         {favorites.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-gray-200 py-12 text-center">
             <Star className="mx-auto mb-3 h-10 w-10 text-gray-200" />
             <p className="text-sm text-gray-400">Du följer inga företag än. Sök nedan för att hitta företag.</p>
           </div>
+        ) : filteredFavorites.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-6">Inga favorit-företag börjar på <strong>{activeLetter}</strong></p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
-            {favorites.map(c => (
+            {filteredFavorites.map(c => (
               <CompanyCard
                 key={c.id}
                 company={c}
@@ -314,21 +347,30 @@ export default function B2CFavoriter() {
 
         {searching ? (
           <div className="py-10 text-center text-sm text-gray-400">Laddar företag...</div>
-        ) : searchResults.length === 0 ? (
-          <div className="rounded-xl border border-gray-200 py-10 text-center text-sm text-gray-400">
-            Inga företag matchade din sökning
-          </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {searchResults.map(c => (
-              <CompanyCard
-                key={c.id}
-                company={c}
-                isFollowing={followedIds.has(c.id)}
-                onToggle={() => toggleFollow(c.id)}
-              />
-            ))}
-          </div>
+          <>
+            {searchResults.length > 0 && (
+              <AlphabetBar active={activeLetter} onChange={setActiveLetter} />
+            )}
+            {searchResults.length === 0 ? (
+              <div className="rounded-xl border border-gray-200 py-10 text-center text-sm text-gray-400">
+                Inga företag matchade din sökning
+              </div>
+            ) : filteredSearchResults.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-6">Inga företag börjar på <strong>{activeLetter}</strong></p>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {filteredSearchResults.map(c => (
+                  <CompanyCard
+                    key={c.id}
+                    company={c}
+                    isFollowing={followedIds.has(c.id)}
+                    onToggle={() => toggleFollow(c.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>

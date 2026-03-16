@@ -6,6 +6,8 @@ import AdCard from '@/components/AdCard'
 import { Search, Heart, Globe } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
+const ALPHABET = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','Å','Ä','Ö']
+
 type CategoryOpt = { id: number; name: string; parent_id: number | null }
 
 export default function B2CAllReklam() {
@@ -21,6 +23,7 @@ export default function B2CAllReklam() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [searched, setSearched]  = useState(false)
   const [loading, setLoading]    = useState(false)
+  const [activeLetter, setActiveLetter] = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -42,6 +45,7 @@ export default function B2CAllReklam() {
     setSearched(true)
     setSelectedCompany(null)
     setAds([])
+    setActiveLetter('')
 
     // Only show companies that target B2C (sends_b2c = true)
     let query = supabase
@@ -200,8 +204,19 @@ export default function B2CAllReklam() {
           {/* Company list */}
           <div className="lg:col-span-1">
             <p className="mb-3 text-sm font-medium text-gray-600">{companies.length} företag hittades</p>
+            {/* Alphabet bar */}
+            <div className="flex flex-wrap gap-0.5 mb-3">
+              <button onClick={() => setActiveLetter('')}
+                className={`rounded px-1.5 py-0.5 text-xs font-semibold transition ${activeLetter === '' ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >Alla</button>
+              {ALPHABET.map(l => (
+                <button key={l} onClick={() => setActiveLetter(activeLetter === l ? '' : l)}
+                  className={`rounded px-1.5 py-0.5 text-xs font-semibold transition ${activeLetter === l ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >{l}</button>
+              ))}
+            </div>
             <div className="space-y-2">
-              {companies.map(c => (
+              {companies.filter(c => !activeLetter || c.public_name.toUpperCase().startsWith(activeLetter)).map(c => (
                 <div key={c.id}
                   className={`card flex items-center gap-3 p-3 cursor-pointer transition hover:shadow-md ${selectedCompany === c.id ? 'ring-2 ring-primary-500' : ''}`}
                   onClick={() => handleSelectCompany(c.id)}

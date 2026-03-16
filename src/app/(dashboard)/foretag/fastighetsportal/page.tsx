@@ -57,6 +57,7 @@ const EMPTY_FORM = {
   county:       '',
   price:        '',
   pricePeriod:  'månad',
+  monthlyFee:   '',
   sizeSqm:      '',
   rooms:        '',
   buildYear:    '',
@@ -118,6 +119,7 @@ export default function ForetagFastighetsportal() {
       county:       p.county,
       price:        p.price != null ? String(p.price) : '',
       pricePeriod:  p.price_period ?? 'månad',
+      monthlyFee:   (p as any).monthly_fee != null ? String((p as any).monthly_fee) : '',
       sizeSqm:      p.size_sqm != null ? String(p.size_sqm) : '',
       rooms:        p.rooms != null ? String(p.rooms) : '',
       buildYear:    p.build_year != null ? String(p.build_year) : '',
@@ -210,6 +212,7 @@ export default function ForetagFastighetsportal() {
       county:        form.county,
       price:         form.price ? parseInt(form.price) : null,
       price_period:  form.listingType === 'uthyrning' ? form.pricePeriod : null,
+      monthly_fee:   (form.propertyType === 'Lägenhet' && form.monthlyFee) ? parseInt(form.monthlyFee) : null,
       size_sqm:      form.sizeSqm ? parseFloat(form.sizeSqm) : null,
       rooms:         (TYPES_WITH_ROOMS.includes(form.propertyType) && form.rooms)
                        ? parseFloat(form.rooms) : null,
@@ -420,6 +423,24 @@ export default function ForetagFastighetsportal() {
                 </div>
               )}
             </div>
+
+            {/* Månadsavgift – visas för Lägenhet */}
+            {form.propertyType === 'Lägenhet' && (
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-600">
+                  Månadsavgift (kr/mån)
+                  <span className="ml-1 text-xs text-gray-400">– bostadsrättsavgift</span>
+                </label>
+                <input
+                  type="number"
+                  className="input-field"
+                  placeholder="t.ex. 3500"
+                  min={0}
+                  value={form.monthlyFee}
+                  onChange={e => setForm(f => ({ ...f, monthlyFee: e.target.value }))}
+                />
+              </div>
+            )}
 
             {/* Storlek, rum, byggnadsår */}
             <div className="grid grid-cols-3 gap-3">
