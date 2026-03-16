@@ -6,13 +6,13 @@ import { formatSEK } from '@/lib/utils'
 import { TrendingUp, Calendar, Receipt, Briefcase, Home, Info, Users } from 'lucide-react'
 
 const JOB_PRICE    = 1490
-const SEEKER_PRICE = 499  // kr exkl. moms per kontaktuppgift-köp
+const SEEKER_PRICE = 99  // kr exkl. moms per kontaktuppgift-köp
 
 // Fastighetsannonspriser (exkl. moms)
-const PROP_B2C_FORSALJNING = 2990
-const PROP_B2C_UTHYRNING   =  990
-const PROP_B2B_FORSALJNING = 6990
-const PROP_B2B_UTHYRNING   = 2990
+const PROP_B2C_FORSALJNING = 1990
+const PROP_B2C_UTHYRNING   =  399
+const PROP_B2B_FORSALJNING = 2990
+const PROP_B2B_UTHYRNING   = 2490
 
 const B2B_PROPERTY_TYPES = ['Lagerlokal', 'Butikslokal']
 

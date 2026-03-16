@@ -6,8 +6,8 @@ type UserType = 'admin' | 'b2c' | 'b2b' | 'company'
 function getDashboardPath(userType: UserType): string {
   switch (userType) {
     case 'admin':   return '/admin/anvandare'
-    case 'b2c':     return '/b2c/favoriter'
-    case 'b2b':     return '/b2b/favoriter'
+    case 'b2c':     return '/b2c/favoritreklam'
+    case 'b2b':     return '/b2b/favoritreklam'
     case 'company': return '/foretag/statistik'
   }
 }

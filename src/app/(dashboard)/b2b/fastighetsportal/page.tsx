@@ -25,6 +25,9 @@ type Property = {
   image_urls: string[]
   created_at: string
   companies: { public_name: string; logo_url: string | null }[] | null
+  contact_name:  string | null
+  contact_phone: string | null
+  contact_email: string | null
 }
 
 type Watchlist = {
@@ -87,7 +90,7 @@ export default function B2BFastighetsportal() {
     setHasSearched(true)
     const { data: propData } = await supabase
       .from('properties')
-      .select('id,company_id,property_type,listing_type,title,description,address,city,county,price,price_period,size_sqm,rooms,build_year,image_urls,created_at')
+      .select('id,company_id,property_type,listing_type,title,description,address,city,county,price,price_period,size_sqm,rooms,build_year,image_urls,created_at,contact_name,contact_phone,contact_email')
       .eq('is_active', true)
       .in('property_type', [...B2B_TYPES])
       .order('created_at', { ascending: false })
@@ -427,6 +430,16 @@ export default function B2BFastighetsportal() {
                         </div>
                       )}
                     </div>
+                    {(p.contact_name || p.contact_phone || p.contact_email) && (
+                      <div className="mb-4 rounded-xl bg-primary-50 border border-primary-100 px-4 py-3">
+                        <p className="text-xs font-semibold text-primary-700 mb-2">Kontakt</p>
+                        <div className="space-y-1 text-sm">
+                          {p.contact_name  && <p className="text-gray-700">{p.contact_name}</p>}
+                          {p.contact_phone && <p><a href={`tel:${p.contact_phone}`} className="text-primary-600 hover:underline">{p.contact_phone}</a></p>}
+                          {p.contact_email && <p><a href={`mailto:${p.contact_email}`} className="text-primary-600 hover:underline">{p.contact_email}</a></p>}
+                        </div>
+                      </div>
+                    )}
                     {company && (
                       <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3">
                         {company.logo_url ? (

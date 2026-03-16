@@ -10,10 +10,10 @@ import {
 } from 'lucide-react'
 
 // ── Priser ───────────────────────────────────────────────────
-const PRICE_B2C_FORSALJNING = 2990  // kr exkl. moms per annons
-const PRICE_B2C_UTHYRNING   =  990  // kr exkl. moms per annons
-const PRICE_B2B_FORSALJNING = 6990  // kr exkl. moms per annons
-const PRICE_B2B_UTHYRNING   = 2990  // kr exkl. moms per annons
+const PRICE_B2C_FORSALJNING = 1990  // kr exkl. moms per annons
+const PRICE_B2C_UTHYRNING   =  399  // kr exkl. moms per annons
+const PRICE_B2B_FORSALJNING = 2990  // kr exkl. moms per annons
+const PRICE_B2B_UTHYRNING   = 2490  // kr exkl. moms per annons
 
 function getPrice(propertyType: string, listingType: string): number {
   const isB2B = B2B_TYPES.includes(propertyType as any)
@@ -46,22 +46,28 @@ type Property = {
   image_urls: string[]
   is_active: boolean
   created_at: string
+  contact_name:  string | null
+  contact_phone: string | null
+  contact_email: string | null
 }
 
 const EMPTY_FORM = {
-  propertyType: '',
-  listingType:  'forsaljning',
-  title:        '',
-  description:  '',
-  address:      '',
-  city:         '',
-  county:       '',
-  price:        '',
-  pricePeriod:  'månad',
-  monthlyFee:   '',
-  sizeSqm:      '',
-  rooms:        '',
-  buildYear:    '',
+  propertyType:  '',
+  listingType:   'forsaljning',
+  title:         '',
+  description:   '',
+  address:       '',
+  city:          '',
+  county:        '',
+  price:         '',
+  pricePeriod:   'månad',
+  monthlyFee:    '',
+  sizeSqm:       '',
+  rooms:         '',
+  buildYear:     '',
+  contactName:   '',
+  contactPhone:  '',
+  contactEmail:  '',
 }
 
 export default function ForetagFastighetsportal() {
@@ -132,6 +138,9 @@ export default function ForetagFastighetsportal() {
       sizeSqm:      p.size_sqm != null ? String(p.size_sqm) : '',
       rooms:        p.rooms != null ? String(p.rooms) : '',
       buildYear:    p.build_year != null ? String(p.build_year) : '',
+      contactName:  p.contact_name ?? '',
+      contactPhone: p.contact_phone ?? '',
+      contactEmail: p.contact_email ?? '',
     })
     setExistingImages(p.image_urls ?? [])
     setNewImageFiles([])
@@ -228,6 +237,9 @@ export default function ForetagFastighetsportal() {
       build_year:    form.buildYear ? parseInt(form.buildYear) : null,
       image_urls:    allImageUrls,
       is_active:     true,
+      contact_name:  form.contactName.trim() || null,
+      contact_phone: form.contactPhone.trim() || null,
+      contact_email: form.contactEmail.trim() || null,
     }
 
     if (editId) {
@@ -517,6 +529,43 @@ export default function ForetagFastighetsportal() {
               </div>
             </div>
 
+            {/* Kontaktuppgifter */}
+            <div>
+              <p className="mb-2 text-sm font-medium text-gray-600">Kontaktuppgifter <span className="font-normal text-gray-400">(visas för intresserade)</span></p>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="mb-1.5 block text-xs text-gray-500">Namn</label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="t.ex. Anna Svensson"
+                    value={form.contactName}
+                    onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs text-gray-500">Telefon</label>
+                  <input
+                    type="tel"
+                    className="input-field"
+                    placeholder="t.ex. 070-123 45 67"
+                    value={form.contactPhone}
+                    onChange={e => setForm(f => ({ ...f, contactPhone: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs text-gray-500">E-post</label>
+                  <input
+                    type="email"
+                    className="input-field"
+                    placeholder="t.ex. anna@foretag.se"
+                    value={form.contactEmail}
+                    onChange={e => setForm(f => ({ ...f, contactEmail: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Bilduppladdning */}
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-600">
@@ -700,7 +749,7 @@ export default function ForetagFastighetsportal() {
           <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700">{seekers.length}</span>
         </div>
         <p className="text-sm text-gray-500 mb-4">
-          Privatpersoner och företag som aktivt söker en fastighet. Köp kontaktuppgifter för att nå dem direkt – 499 kr exkl. moms per sökes-annons.
+          Privatpersoner och företag som aktivt söker en fastighet. Köp kontaktuppgifter för att nå dem direkt – 99 kr exkl. moms per sökes-annons.
         </p>
 
         {seekers.length === 0 ? (
@@ -728,9 +777,6 @@ export default function ForetagFastighetsportal() {
                         <span className="text-xs text-gray-300">·</span>
                         <span className="text-xs text-gray-400">{new Date(s.created_at).toLocaleDateString('sv-SE')}</span>
                       </div>
-                      {s.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2">{s.description}</p>
-                      )}
                     </div>
                     <div className="shrink-0 self-center">
                       {isOpen
@@ -767,7 +813,7 @@ export default function ForetagFastighetsportal() {
                           >
                             {purchasingId === s.id
                               ? <Loader2 className="h-4 w-4 animate-spin" />
-                              : 'Köp kontaktuppgifter – 499 kr'
+                              : 'Köp kontaktuppgifter – 99 kr'
                             }
                           </button>
                         </div>
