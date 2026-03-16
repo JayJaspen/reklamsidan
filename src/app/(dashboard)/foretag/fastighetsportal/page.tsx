@@ -690,7 +690,7 @@ export default function ForetagFastighetsportal() {
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* ── Sökes-annonser ── */}
       <div className="mt-10">
