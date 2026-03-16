@@ -157,6 +157,17 @@ export default function RegisterForetagPage() {
         form.categoriesB2b.map(id => ({ company_id: userId, category_id: id }))
       )
     }
+    if (form.counties.length > 0) {
+      const countyInserts = form.counties
+        .map(name => {
+          const idx = (SWEDISH_COUNTIES as readonly string[]).indexOf(name)
+          return idx >= 0 ? { company_id: userId, county_id: idx + 1 } : null
+        })
+        .filter(Boolean) as { company_id: string; county_id: number }[]
+      if (countyInserts.length > 0) {
+        await supabase.from('company_counties').insert(countyInserts)
+      }
+    }
 
     router.push('/foretag/statistik')
   }

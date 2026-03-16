@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
-import { Building2, Users, Star, Filter, Globe, ChevronRight, TrendingUp, Target, Shield, Mail, Send, CheckCircle } from 'lucide-react'
+import { Building2, Users, Star, Filter, Globe, ChevronRight, TrendingUp, Target, Shield, Mail, Send, CheckCircle, Briefcase, Home, Search, Bell } from 'lucide-react'
 
 const STATS_THRESHOLD = 100
 
@@ -264,12 +264,15 @@ export default function LandingPage() {
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {[
-              { icon: Star,    bg: 'bg-yellow-50', color: 'text-yellow-500', title: 'Favoriter',       desc: 'Följ dina favoritföretag och se deras senaste erbjudanden direkt i en egen flik.' },
-              { icon: Target,  bg: 'bg-blue-50',   color: 'text-blue-500',   title: 'Intressereklam',  desc: 'Välj kategorier du bryr dig om och se bara relevant reklam – automatiskt filtrerat.' },
-              { icon: Globe,   bg: 'bg-green-50',  color: 'text-green-500',  title: 'All reklam',      desc: 'Sök och bläddra bland alla aktiva annonsörer i hela Sverige.' },
-              { icon: Filter,  bg: 'bg-purple-50', color: 'text-purple-500', title: 'Precis målgrupp', desc: 'Som annonsör väljer du exakt vem som ser din reklam – inga pengar slösas.' },
-              { icon: Shield,  bg: 'bg-red-50',    color: 'text-red-500',    title: 'Ingen spam',      desc: 'Mottagarna väljer själva vad de vill se. Reklam de faktiskt läser.' },
-              { icon: TrendingUp, bg: 'bg-orange-50', color: 'text-orange-500', title: 'Betala per läsning', desc: 'Som annonsör betalar du bara när din reklam faktiskt öppnas och läses.' },
+              { icon: Star,       bg: 'bg-yellow-50',  color: 'text-yellow-500',  title: 'Favoriter',          desc: 'Följ dina favoritföretag och se deras senaste erbjudanden direkt i en egen flik.' },
+              { icon: Target,     bg: 'bg-blue-50',    color: 'text-blue-500',    title: 'Intressereklam',     desc: 'Välj kategorier du bryr dig om och se bara relevant reklam – automatiskt filtrerat.' },
+              { icon: Globe,      bg: 'bg-green-50',   color: 'text-green-500',   title: 'All reklam',         desc: 'Sök och bläddra bland alla aktiva annonsörer i hela Sverige.' },
+              { icon: Filter,     bg: 'bg-purple-50',  color: 'text-purple-500',  title: 'Precis målgrupp',    desc: 'Som annonsör väljer du exakt vem som ser din reklam – inga pengar slösas.' },
+              { icon: Shield,     bg: 'bg-red-50',     color: 'text-red-500',     title: 'Ingen spam',         desc: 'Mottagarna väljer själva vad de vill se. Reklam de faktiskt läser.' },
+              { icon: TrendingUp, bg: 'bg-orange-50',  color: 'text-orange-500',  title: 'Betala per läsning', desc: 'Som annonsör betalar du bara när din reklam faktiskt öppnas och läses.' },
+              { icon: Briefcase,  bg: 'bg-sky-50',     color: 'text-sky-500',     title: 'Jobbmarknaden',      desc: 'Annonsörer publicerar lediga tjänster direkt på plattformen – användare hittar jobb från sina favoritföretag.' },
+              { icon: Home,       bg: 'bg-emerald-50', color: 'text-emerald-500', title: 'Fastighetsportalen', desc: 'Annonsera bostäder och lokaler till försäljning eller uthyrning. Intresserade söker, sparar bevakningar och kontaktar direkt.' },
+              { icon: Bell,       bg: 'bg-pink-50',    color: 'text-pink-500',    title: 'Bevakningar',        desc: 'Sätt upp bevakningar för jobb och fastigheter – få relevanta träffar samlade utan att behöva söka om.' },
             ].map(({ icon: Icon, bg, color, title, desc }) => (
               <div key={title} className="flex gap-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
                 <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg ${bg}`}>
@@ -281,6 +284,108 @@ export default function LandingPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Jobbmarknaden ── */}
+      <section className="px-4 py-24 bg-white">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+            <div>
+              <span className="mb-4 inline-block rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">Jobbmarknaden</span>
+              <h2 className="mb-4 text-3xl font-bold text-gray-900 leading-tight">
+                Hitta rätt kandidat –<br />eller rätt jobb
+              </h2>
+              <p className="mb-6 text-gray-500 leading-relaxed">
+                Annonsörer på plattformen kan publicera lediga tjänster direkt i sin profil. Användare som följer företaget ser jobbannonsen automatiskt i sin feed – utan extra sökning.
+              </p>
+              <ul className="space-y-3 text-sm text-gray-600">
+                {[
+                  { icon: Briefcase, text: 'Annonsörer: publicera jobbannonser med deadline, lön och beskrivning' },
+                  { icon: Bell,      text: 'Användare: aktivera jobbnotiser per favoritföretag' },
+                  { icon: Search,    text: 'Sök och filtrera bland alla lediga tjänster på plattformen' },
+                  { icon: Filter,    text: 'Rikta annonsen mot rätt region och målgrupp' },
+                ].map(({ icon: Icon, text }) => (
+                  <li key={text} className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-100">
+                      <Icon className="h-3 w-3 text-sky-600" />
+                    </div>
+                    <span>{text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-2xl bg-gradient-to-br from-sky-50 to-blue-100 p-8">
+              <div className="space-y-3">
+                {[
+                  { title: 'Kundtjänstmedarbetare', company: 'Företag AB', loc: 'Malmö', type: 'Heltid' },
+                  { title: 'Junior redovisningsekonom', company: 'Redovisning & Co', loc: 'Stockholm', type: 'Heltid' },
+                  { title: 'Säljare B2B', company: 'Försäljning Nord', loc: 'Sundsvall', type: 'Heltid' },
+                ].map((job, i) => (
+                  <div key={i} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-sky-100">
+                    <p className="font-semibold text-gray-900 text-sm">{job.title}</p>
+                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500">
+                      <span className="flex items-center gap-1"><Building2 className="h-3 w-3" />{job.company}</span>
+                      <span>{job.loc}</span>
+                      <span className="rounded-full bg-sky-100 px-2 py-0.5 text-sky-700 font-medium">{job.type}</span>
+                    </div>
+                  </div>
+                ))}
+                <p className="text-center text-xs text-sky-500 font-medium pt-1">Exempel på jobbannonser</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Fastighetsportalen ── */}
+      <section className="bg-gray-50 px-4 py-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-center">
+            <div className="order-2 lg:order-1 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-100 p-8">
+              <div className="space-y-3">
+                {[
+                  { title: '3:a på Storgatan 12', badge: 'Uthyrning', price: '9 500 kr/mån', detail: '72 kvm · 3 rum · Göteborg' },
+                  { title: 'Villa Ekåsen', badge: 'Försäljning', price: '3 250 000 kr', detail: '145 kvm · 5 rum · Västerås' },
+                  { title: 'Kontorslokal centralt', badge: 'Uthyrning', price: '18 000 kr/mån', detail: '210 kvm · Lagerlokal · Malmö' },
+                ].map((prop, i) => (
+                  <div key={i} className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-emerald-100">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold text-gray-900 text-sm">{prop.title}</p>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${prop.badge === 'Försäljning' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{prop.badge}</span>
+                    </div>
+                    <p className="mt-0.5 text-sm font-semibold text-emerald-700">{prop.price}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{prop.detail}</p>
+                  </div>
+                ))}
+                <p className="text-center text-xs text-emerald-500 font-medium pt-1">Exempel på fastighetsannonser</p>
+              </div>
+            </div>
+            <div className="order-1 lg:order-2">
+              <span className="mb-4 inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">Fastighetsportalen</span>
+              <h2 className="mb-4 text-3xl font-bold text-gray-900 leading-tight">
+                Bostäder, lokaler och<br />fastigheter – på ett ställe
+              </h2>
+              <p className="mb-6 text-gray-500 leading-relaxed">
+                Annonsörer kan publicera fastigheter till försäljning eller uthyrning. Privatpersoner och företag söker, filtrerar och sparar bevakningar. Sökes-annonser kopplar köpare direkt till säljare.
+              </p>
+              <ul className="space-y-3 text-sm text-gray-600">
+                {[
+                  { icon: Home,      text: 'Annonsörer: publicera bostäder (villor, lägenheter, radhus, tomter) och lokaler' },
+                  { icon: Search,    text: 'Användare: sök med filter på typ, pris, rum, storlek och region' },
+                  { icon: Bell,      text: 'Spara bevakningar – matchande annonser visas automatiskt' },
+                  { icon: Users,     text: 'Lägg upp sökes-annons och nå säljare direkt för 99 kr' },
+                ].map(({ icon: Icon, text }) => (
+                  <li key={text} className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                      <Icon className="h-3 w-3 text-emerald-600" />
+                    </div>
+                    <span>{text}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
