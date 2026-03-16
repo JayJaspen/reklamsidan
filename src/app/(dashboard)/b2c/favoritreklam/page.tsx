@@ -95,7 +95,7 @@ export default async function B2CFavoritreklam() {
   if (watchlists && watchlists.length > 0) {
     const { data: allProps } = await supabase
       .from('properties')
-      .select('id, company_id, property_type, listing_type, title, city, county, price, price_period, monthly_fee, size_sqm, rooms, image_urls, created_at')
+      .select('id, company_id, property_type, listing_type, title, description, address, city, county, price, price_period, monthly_fee, size_sqm, rooms, build_year, image_urls, created_at')
       .eq('is_active', true)
       .in('property_type', B2C_TYPES)
       .order('created_at', { ascending: false })
@@ -248,37 +248,70 @@ export default async function B2CFavoritreklam() {
           ) : (
             <div className="space-y-3">
               {matchedProperties.map((p: any) => (
-                <div key={p.id} className="card p-4 flex gap-4">
-                  <div className="shrink-0 h-16 w-20 rounded-lg overflow-hidden bg-gray-100 border border-gray-100">
-                    {p.image_urls?.length > 0 ? (
-                      <img src={p.image_urls[0]} alt={p.title} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full flex items-center justify-center">
-                        <Home className="h-6 w-6 text-gray-300" />
+                <details key={p.id} className="card overflow-hidden group">
+                  <summary className="flex gap-4 p-4 cursor-pointer list-none select-none hover:bg-gray-50 transition">
+                    <div className="shrink-0 h-16 w-20 rounded-lg overflow-hidden bg-gray-100 border border-gray-100">
+                      {p.image_urls?.length > 0 ? (
+                        <img src={p.image_urls[0]} alt={p.title} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center">
+                          <Home className="h-6 w-6 text-gray-300" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                        <span className="font-semibold text-gray-900 text-sm">{p.title}</span>
+                        <span className="badge badge-blue">{p.property_type}</span>
+                        <span className={`badge ${p.listing_type === 'forsaljning' ? 'badge-green' : 'badge-yellow'}`}>
+                          {p.listing_type === 'forsaljning' ? 'Försäljning' : 'Uthyrning'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500">{p.city} · {p.county}</p>
+                      <div className="flex flex-wrap gap-x-3 text-xs text-gray-400 mt-0.5">
+                        {p.price && (
+                          <span className="font-semibold text-gray-800">
+                            {p.price.toLocaleString('sv-SE')} kr{p.price_period ? ` / ${p.price_period}` : ''}
+                          </span>
+                        )}
+                        {p.monthly_fee && <span>Avgift: {p.monthly_fee.toLocaleString('sv-SE')} kr/mån</span>}
+                        {p.size_sqm && <span>{p.size_sqm} kvm</span>}
+                        {p.rooms && <span>{p.rooms} rum</span>}
+                      </div>
+                    </div>
+                    <span className="shrink-0 self-center text-xs text-gray-400 whitespace-nowrap">Läs mer ▾</span>
+                  </summary>
+                  <div className="border-t border-gray-100 px-4 pb-4 pt-3">
+                    {/* Image gallery */}
+                    {p.image_urls?.length > 1 && (
+                      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+                        {p.image_urls.map((url: string, i: number) => (
+                          <img key={i} src={url} alt={`Bild ${i + 1}`} className="h-32 w-40 shrink-0 rounded-lg object-cover border border-gray-100" />
+                        ))}
                       </div>
                     )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-0.5">
-                      <span className="font-semibold text-gray-900 text-sm">{p.title}</span>
-                      <span className="badge badge-blue">{p.property_type}</span>
-                      <span className={`badge ${p.listing_type === 'forsaljning' ? 'badge-green' : 'badge-yellow'}`}>
-                        {p.listing_type === 'forsaljning' ? 'Försäljning' : 'Uthyrning'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500">{p.city} · {p.county}</p>
-                    <div className="flex flex-wrap gap-x-3 text-xs text-gray-400 mt-0.5">
-                      {p.price && (
-                        <span className="font-semibold text-gray-800">
-                          {p.price.toLocaleString('sv-SE')} kr{p.price_period ? ` / ${p.price_period}` : ''}
-                        </span>
+                    {p.description && (
+                      <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed mb-4">{p.description}</p>
+                    )}
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm mb-3">
+                      {p.address    && <div><span className="text-gray-400">Adress:</span> <span className="text-gray-700">{p.address}, {p.city}</span></div>}
+                      {p.size_sqm   && <div><span className="text-gray-400">Storlek:</span> <span className="text-gray-700">{p.size_sqm} kvm</span></div>}
+                      {p.rooms      && <div><span className="text-gray-400">Rum:</span> <span className="text-gray-700">{p.rooms} rum</span></div>}
+                      {p.build_year && <div><span className="text-gray-400">Byggd:</span> <span className="text-gray-700">{p.build_year}</span></div>}
+                      {p.price      && (
+                        <div>
+                          <span className="text-gray-400">Pris:</span>{' '}
+                          <span className="font-semibold text-gray-900">
+                            {p.price.toLocaleString('sv-SE')} kr{p.price_period ? ` / ${p.price_period}` : ''}
+                          </span>
+                        </div>
                       )}
-                      {p.monthly_fee && <span>Avgift: {p.monthly_fee.toLocaleString('sv-SE')} kr/mån</span>}
-                      {p.size_sqm && <span>{p.size_sqm} kvm</span>}
-                      {p.rooms && <span>{p.rooms} rum</span>}
+                      {p.monthly_fee && p.property_type === 'Lägenhet' && (
+                        <div><span className="text-gray-400">Avgift:</span> <span className="text-gray-700">{p.monthly_fee.toLocaleString('sv-SE')} kr/mån</span></div>
+                      )}
                     </div>
                   </div>
-                </div>
+                </details>
               ))}
             </div>
           )}

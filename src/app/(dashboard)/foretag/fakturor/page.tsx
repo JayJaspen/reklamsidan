@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatSEK } from '@/lib/utils'
-import { TrendingUp, Calendar, Receipt, Briefcase, Home, Info } from 'lucide-react'
+import { TrendingUp, Calendar, Receipt, Briefcase, Home, Info, Users } from 'lucide-react'
 
-const JOB_PRICE = 1490
+const JOB_PRICE    = 1490
+const SEEKER_PRICE = 499  // kr exkl. moms per kontaktuppgift-köp
 
 // Fastighetsannonspriser (exkl. moms)
 const PROP_B2C_FORSALJNING = 2990
@@ -62,20 +63,28 @@ type UnbilledProperty = {
   created_at:    string
 }
 
+type UnbilledSeekerPurchase = {
+  id:            number
+  seeker_id:     number
+  created_at:    string
+  property_seekers: { property_type: string; listing_type: string; county: string } | null
+}
+
 export default function ForetagFakturor() {
   const supabase = createClient()
-  const [loading, setLoading]                       = useState(true)
-  const [current, setCurrent]                       = useState<CurrentBilling | null>(null)
-  const [unbilledJobs, setUnbilledJobs]             = useState<UnbilledJob[]>([])
-  const [unbilledProperties, setUnbilledProperties] = useState<UnbilledProperty[]>([])
-  const [history, setHistory]                       = useState<HistoryRow[]>([])
+  const [loading, setLoading]                             = useState(true)
+  const [current, setCurrent]                             = useState<CurrentBilling | null>(null)
+  const [unbilledJobs, setUnbilledJobs]                   = useState<UnbilledJob[]>([])
+  const [unbilledProperties, setUnbilledProperties]       = useState<UnbilledProperty[]>([])
+  const [unbilledSeekerPurchases, setUnbilledSeekerPurchases] = useState<UnbilledSeekerPurchase[]>([])
+  const [history, setHistory]                             = useState<HistoryRow[]>([])
   const nextInvoice = getNextInvoiceDate()
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
 
-      const [{ data: billing }, { data: jobs }, { data: props }, { data: hist }] = await Promise.all([
+      const [{ data: billing }, { data: jobs }, { data: props }, { data: seekPurchases }, { data: hist }] = await Promise.all([
         supabase.rpc('get_my_billing_current').maybeSingle(),
         supabase
           .from('jobs')
@@ -89,21 +98,29 @@ export default function ForetagFakturor() {
           .eq('company_id', user.id)
           .eq('is_billed', false)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('property_seeker_purchases')
+          .select('id, seeker_id, created_at, property_seekers(property_type, listing_type, county)')
+          .eq('company_id', user.id)
+          .eq('is_billed', false)
+          .order('created_at', { ascending: false }),
         supabase.rpc('get_my_billing_history'),
       ])
 
-      if (billing) setCurrent(billing as CurrentBilling)
-      if (jobs)    setUnbilledJobs(jobs as UnbilledJob[])
-      if (props)   setUnbilledProperties(props as UnbilledProperty[])
-      if (hist)    setHistory(hist as HistoryRow[])
+      if (billing)       setCurrent(billing as CurrentBilling)
+      if (jobs)          setUnbilledJobs(jobs as UnbilledJob[])
+      if (props)         setUnbilledProperties(props as UnbilledProperty[])
+      if (seekPurchases) setUnbilledSeekerPurchases(seekPurchases as UnbilledSeekerPurchase[])
+      if (hist)          setHistory(hist as HistoryRow[])
       setLoading(false)
     })
   }, [])
 
-  const adsTotal        = current ? Number(current.total_amount) : 0
-  const jobsTotal       = unbilledJobs.length * JOB_PRICE
-  const propertiesTotal = unbilledProperties.reduce((sum, p) => sum + propPrice(p.property_type, p.listing_type), 0)
-  const periodTotal     = adsTotal + jobsTotal + propertiesTotal
+  const adsTotal          = current ? Number(current.total_amount) : 0
+  const jobsTotal         = unbilledJobs.length * JOB_PRICE
+  const propertiesTotal   = unbilledProperties.reduce((sum, p) => sum + propPrice(p.property_type, p.listing_type), 0)
+  const seekerTotal       = unbilledSeekerPurchases.length * SEEKER_PRICE
+  const periodTotal       = adsTotal + jobsTotal + propertiesTotal + seekerTotal
 
   const readBreakdown: [string, number][] = current
     ? [
@@ -204,6 +221,31 @@ export default function ForetagFakturor() {
                           </span>
                         </span>
                         <span>{formatSEK(price)}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            {unbilledSeekerPurchases.length > 0 && (
+              <div>
+                <div className="flex justify-between text-sm text-gray-700">
+                  <span>👤 Sökes-kontaktuppgifter ({unbilledSeekerPurchases.length} st × {SEEKER_PRICE.toLocaleString('sv-SE')} kr)</span>
+                  <span className="font-medium">{formatSEK(seekerTotal)}</span>
+                </div>
+                <div className="mt-1.5 space-y-1 pl-4">
+                  {unbilledSeekerPurchases.map(sp => {
+                    const s = sp.property_seekers
+                    return (
+                      <div key={sp.id} className="flex items-center justify-between text-xs text-gray-400">
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {s ? `${s.property_type} · ${s.listing_type === 'forsaljning' ? 'Köpes' : 'Söker hyra'}${s.county ? ` · ${s.county}` : ''}` : `Sökes #${sp.seeker_id}`}
+                          <span className="text-gray-300 ml-1">
+                            ({new Date(sp.created_at).toLocaleDateString('sv-SE')})
+                          </span>
+                        </span>
+                        <span>{formatSEK(SEEKER_PRICE)}</span>
                       </div>
                     )
                   })}

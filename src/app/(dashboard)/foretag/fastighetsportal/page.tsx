@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { JOB_COUNTIES } from '@/lib/utils'
+import { JOB_COUNTIES, CITIES_BY_COUNTY } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, Eye, EyeOff, Loader2, X,
   CheckCircle, Info, Home, Building2, ImagePlus, XCircle,
+  ChevronDown, ChevronUp, Search,
 } from 'lucide-react'
 
 // ── Priser ───────────────────────────────────────────────────
@@ -66,17 +67,23 @@ const EMPTY_FORM = {
 export default function ForetagFastighetsportal() {
   const supabase = createClient()
 
-  const [companyId,   setCompanyId]   = useState<string | null>(null)
-  const [properties,  setProperties]  = useState<Property[]>([])
-  const [loading,     setLoading]     = useState(true)
-  const [showForm,    setShowForm]    = useState(false)
-  const [editId,      setEditId]      = useState<number | null>(null)
-  const [saving,      setSaving]      = useState(false)
-  const [saved,       setSaved]       = useState(false)
-  const [deletingId,  setDeletingId]  = useState<number | null>(null)
-  const [togglingId,  setTogglingId]  = useState<number | null>(null)
-  const [form,        setForm]        = useState(EMPTY_FORM)
-  const [error,       setError]       = useState<string | null>(null)
+  const [companyId,         setCompanyId]         = useState<string | null>(null)
+  const [properties,        setProperties]        = useState<Property[]>([])
+  const [loading,           setLoading]           = useState(true)
+  const [showForm,          setShowForm]          = useState(false)
+  const [editId,            setEditId]            = useState<number | null>(null)
+  const [saving,            setSaving]            = useState(false)
+  const [saved,             setSaved]             = useState(false)
+  const [deletingId,        setDeletingId]        = useState<number | null>(null)
+  const [togglingId,        setTogglingId]        = useState<number | null>(null)
+  const [form,              setForm]              = useState(EMPTY_FORM)
+  const [error,             setError]             = useState<string | null>(null)
+
+  // Sökes-annonser (users looking for properties)
+  const [seekers,           setSeekers]           = useState<any[]>([])
+  const [purchasedIds,      setPurchasedIds]      = useState<Set<number>>(new Set())
+  const [purchasingId,      setPurchasingId]      = useState<number | null>(null)
+  const [expandedSeekerId,  setExpandedSeekerId]  = useState<number | null>(null)
 
   // Bildhantering
   const [existingImages,  setExistingImages]  = useState<string[]>([])
@@ -88,12 +95,14 @@ export default function ForetagFastighetsportal() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       setCompanyId(user.id)
-      const { data } = await supabase
-        .from('properties')
-        .select('*')
-        .eq('company_id', user.id)
-        .order('created_at', { ascending: false })
-      if (data) setProperties(data as Property[])
+      const [{ data: propData }, { data: seekerData }, { data: purchaseData }] = await Promise.all([
+        supabase.from('properties').select('*').eq('company_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('property_seekers').select('*').eq('is_active', true).order('created_at', { ascending: false }),
+        supabase.from('property_seeker_purchases').select('seeker_id').eq('company_id', user.id),
+      ])
+      if (propData)    setProperties(propData as Property[])
+      if (seekerData)  setSeekers(seekerData)
+      if (purchaseData) setPurchasedIds(new Set(purchaseData.map((p: any) => p.seeker_id as number)))
       setLoading(false)
     })
   }, [])
@@ -237,6 +246,14 @@ export default function ForetagFastighetsportal() {
     closeForm()
   }
 
+  async function handleBuyContact(seekerId: number) {
+    if (!companyId) return
+    setPurchasingId(seekerId)
+    await supabase.from('property_seeker_purchases').insert({ company_id: companyId, seeker_id: seekerId })
+    setPurchasedIds(prev => new Set(prev).add(seekerId))
+    setPurchasingId(null)
+  }
+
   async function handleDelete(id: number) {
     if (!confirm('Är du säker på att du vill ta bort denna annons?')) return
     setDeletingId(id)
@@ -373,20 +390,34 @@ export default function ForetagFastighetsportal() {
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-600">Stad *</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="t.ex. Göteborg"
-                  value={form.city}
-                  onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
-                />
+                {form.county && CITIES_BY_COUNTY[form.county] ? (
+                  <select
+                    className="input-field"
+                    value={form.city}
+                    onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                  >
+                    <option value="">Välj stad</option>
+                    {CITIES_BY_COUNTY[form.county].map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Välj län först"
+                    value={form.city}
+                    onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                    disabled={!form.county}
+                  />
+                )}
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-600">Län *</label>
                 <select
                   className="input-field"
                   value={form.county}
-                  onChange={e => setForm(f => ({ ...f, county: e.target.value }))}
+                  onChange={e => setForm(f => ({ ...f, county: e.target.value, city: '' }))}
                 >
                   <option value="">Välj län</option>
                   {JOB_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -568,7 +599,7 @@ export default function ForetagFastighetsportal() {
           <p className="text-base font-semibold text-gray-700">Inga fastighetsannonser än</p>
           <p className="text-sm text-gray-500 mt-1">Klicka på "Ny annons" för att publicera din första fastighet.</p>
         </div>
-      ) : (
+      ) : properties.length > 0 ? (
         <div className="space-y-3">
           {properties.map(p => (
             <div key={p.id} className={`card overflow-hidden transition ${!p.is_active ? 'opacity-60' : ''}`}>
@@ -660,6 +691,95 @@ export default function ForetagFastighetsportal() {
           ))}
         </div>
       )}
+
+      {/* ── Sökes-annonser ── */}
+      <div className="mt-10">
+        <div className="mb-4 flex items-center gap-2">
+          <Search className="h-5 w-5 text-primary-500" />
+          <h2 className="text-lg font-bold text-gray-900">Sökes-annonser</h2>
+          <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700">{seekers.length}</span>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Privatpersoner och företag som aktivt söker en fastighet. Köp kontaktuppgifter för att nå dem direkt – 499 kr exkl. moms per sökes-annons.
+        </p>
+
+        {seekers.length === 0 ? (
+          <div className="rounded-2xl border-2 border-dashed border-gray-200 py-10 text-center text-sm text-gray-400">
+            Inga aktiva sökes-annonser just nu
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {seekers.map((s: any) => {
+              const purchased = purchasedIds.has(s.id)
+              const isOpen    = expandedSeekerId === s.id
+              return (
+                <div key={s.id} className="card overflow-hidden">
+                  <button
+                    onClick={() => setExpandedSeekerId(isOpen ? null : s.id)}
+                    className="w-full text-left flex items-start gap-4 p-4 hover:bg-gray-50 transition"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="badge badge-blue">{s.property_type}</span>
+                        <span className={`badge ${s.listing_type === 'forsaljning' ? 'badge-green' : 'badge-yellow'}`}>
+                          {s.listing_type === 'forsaljning' ? 'Köpes' : 'Söker hyra'}
+                        </span>
+                        {s.county && <span className="text-xs text-gray-500">{s.city ? `${s.city}, ` : ''}{s.county}</span>}
+                        <span className="text-xs text-gray-300">·</span>
+                        <span className="text-xs text-gray-400">{new Date(s.created_at).toLocaleDateString('sv-SE')}</span>
+                      </div>
+                      {s.description && (
+                        <p className="text-sm text-gray-600 line-clamp-2">{s.description}</p>
+                      )}
+                    </div>
+                    <div className="shrink-0 self-center">
+                      {isOpen
+                        ? <ChevronUp className="h-5 w-5 text-gray-400" />
+                        : <ChevronDown className="h-5 w-5 text-gray-400" />
+                      }
+                    </div>
+                  </button>
+
+                  {isOpen && (
+                    <div className="border-t border-gray-100 px-4 pb-4 pt-3">
+                      {s.description && (
+                        <p className="text-sm text-gray-700 whitespace-pre-line mb-4">{s.description}</p>
+                      )}
+                      {purchased ? (
+                        <div className="rounded-xl bg-green-50 border border-green-200 p-4 text-sm">
+                          <p className="font-semibold text-green-800 mb-2">✓ Kontaktuppgifter upplåsta</p>
+                          <div className="space-y-1 text-gray-700">
+                            {s.contact_name  && <p><span className="text-gray-400">Namn:</span> {s.contact_name}</p>}
+                            {s.contact_phone && <p><span className="text-gray-400">Telefon:</span> <a href={`tel:${s.contact_phone}`} className="text-primary-600 hover:underline">{s.contact_phone}</a></p>}
+                            {s.contact_email && <p><span className="text-gray-400">E-post:</span> <a href={`mailto:${s.contact_email}`} className="text-primary-600 hover:underline">{s.contact_email}</a></p>}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-4 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3">
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">Kontaktuppgifter är dolda</p>
+                            <p className="text-xs text-gray-400">Köp för att se namn, telefon och e-post – debiteras på nästkommande kvartalsfaktura</p>
+                          </div>
+                          <button
+                            onClick={() => handleBuyContact(s.id)}
+                            disabled={purchasingId === s.id}
+                            className="btn-primary shrink-0 text-sm"
+                          >
+                            {purchasingId === s.id
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : 'Köp kontaktuppgifter – 499 kr'
+                            }
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

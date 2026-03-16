@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { JOB_COUNTIES } from '@/lib/utils'
-import { ChevronDown, ChevronUp, Building2, X, Search, Bell, Loader2, Trash2 } from 'lucide-react'
+import { JOB_COUNTIES, CITIES_BY_COUNTY } from '@/lib/utils'
+import { ChevronDown, ChevronUp, Building2, X, Search, Bell, Loader2, Trash2, Plus, Eye, EyeOff } from 'lucide-react'
 
 const B2B_TYPES = ['Lagerlokal', 'Butikslokal'] as const
 
@@ -60,16 +60,25 @@ export default function B2BFastighetsportal() {
   const [showWatchForm, setShowWatchForm] = useState(false)
   const [deletingWId,   setDeletingWId]  = useState<number | null>(null)
 
+  // Sökes
+  const EMPTY_SEEKER = { propertyType: '', listingType: 'forsaljning', county: '', city: '', description: '', contactName: '', contactPhone: '', contactEmail: '' }
+  const [mySeekers,        setMySeekers]        = useState<any[]>([])
+  const [showSeekerForm,   setShowSeekerForm]   = useState(false)
+  const [seekerForm,       setSeekerForm]       = useState(EMPTY_SEEKER)
+  const [savingSeeker,     setSavingSeeker]     = useState(false)
+  const [seekerError,      setSeekerError]      = useState<string | null>(null)
+  const [deletingSeekerId, setDeletingSeekerId] = useState<number | null>(null)
+
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       setUserId(user.id)
-      const { data } = await supabase
-        .from('property_watchlists')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-      setWatchlists((data ?? []) as Watchlist[])
+      const [{ data: wl }, { data: sk }] = await Promise.all([
+        supabase.from('property_watchlists').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('property_seekers').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      ])
+      setWatchlists((wl ?? []) as Watchlist[])
+      setMySeekers(sk ?? [])
     })
   }, [])
 
@@ -158,6 +167,46 @@ export default function B2BFastighetsportal() {
     await supabase.from('property_watchlists').delete().eq('id', id)
     setWatchlists(prev => prev.filter(w => w.id !== id))
     setDeletingWId(null)
+  }
+
+  async function saveSeeker() {
+    if (!userId) return
+    if (!seekerForm.propertyType) { setSeekerError('Välj fastighetstyp.'); return }
+    if (!seekerForm.description.trim()) { setSeekerError('Beskriv vad du söker.'); return }
+    if (!seekerForm.contactName.trim()) { setSeekerError('Ange ditt namn.'); return }
+    setSavingSeeker(true); setSeekerError(null)
+    const payload = {
+      user_id:       userId,
+      property_type: seekerForm.propertyType,
+      listing_type:  seekerForm.listingType,
+      county:        seekerForm.county,
+      city:          seekerForm.city,
+      description:   seekerForm.description.trim(),
+      contact_name:  seekerForm.contactName.trim(),
+      contact_phone: seekerForm.contactPhone.trim(),
+      contact_email: seekerForm.contactEmail.trim(),
+      is_active:     true,
+    }
+    const { data, error } = await supabase.from('property_seekers').insert(payload).select().single()
+    if (error) { setSeekerError('Kunde inte spara: ' + error.message); setSavingSeeker(false); return }
+    if (data) setMySeekers(prev => [data, ...prev])
+    setSeekerForm(EMPTY_SEEKER)
+    setShowSeekerForm(false)
+    setSavingSeeker(false)
+  }
+
+  async function deleteSeeker(id: number) {
+    if (!confirm('Ta bort sökes-annonsen?')) return
+    setDeletingSeekerId(id)
+    await supabase.from('property_seekers').delete().eq('id', id)
+    setMySeekers(prev => prev.filter(s => s.id !== id))
+    setDeletingSeekerId(null)
+  }
+
+  async function toggleSeekerActive(s: any) {
+    const next = !s.is_active
+    await supabase.from('property_seekers').update({ is_active: next }).eq('id', s.id)
+    setMySeekers(prev => prev.map(x => x.id === s.id ? { ...x, is_active: next } : x))
   }
 
   return (
@@ -397,6 +446,148 @@ export default function B2BFastighetsportal() {
           })}
         </div>
       )}
+
+      {/* ── Söker lokal ── */}
+      <div className="mt-10">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Search className="h-5 w-5 text-primary-500" />
+            <h2 className="text-lg font-bold text-gray-900">Söker lokal</h2>
+            {mySeekers.length > 0 && (
+              <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-semibold text-primary-700">{mySeekers.length}</span>
+            )}
+          </div>
+          {!showSeekerForm && (
+            <button onClick={() => setShowSeekerForm(true)} className="btn-primary text-sm">
+              <Plus className="h-4 w-4" /> Lägg upp sökes-annons
+            </button>
+          )}
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          Lägg upp en annons om du söker en lokal – synlig för företag i fastighetsportalen.
+        </p>
+
+        {showSeekerForm && (
+          <div className="card p-5 mb-5">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-800">Ny sökes-annons</h3>
+              <button onClick={() => { setShowSeekerForm(false); setSeekerError(null) }} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Lokaltyp *</label>
+                  <select className="input-field" value={seekerForm.propertyType} onChange={e => setSeekerForm(f => ({ ...f, propertyType: e.target.value }))}>
+                    <option value="">Välj typ</option>
+                    {B2B_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Jag vill</label>
+                  <select className="input-field" value={seekerForm.listingType} onChange={e => setSeekerForm(f => ({ ...f, listingType: e.target.value }))}>
+                    <option value="forsaljning">Köpa</option>
+                    <option value="uthyrning">Hyra</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Län</label>
+                  <select className="input-field" value={seekerForm.county} onChange={e => setSeekerForm(f => ({ ...f, county: e.target.value, city: '' }))}>
+                    <option value="">Alla / Välj</option>
+                    {JOB_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Stad</label>
+                  {seekerForm.county && CITIES_BY_COUNTY[seekerForm.county] ? (
+                    <select className="input-field" value={seekerForm.city} onChange={e => setSeekerForm(f => ({ ...f, city: e.target.value }))}>
+                      <option value="">Alla / Välj</option>
+                      {CITIES_BY_COUNTY[seekerForm.county].map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  ) : (
+                    <input type="text" className="input-field" placeholder="Valfritt" value={seekerForm.city} onChange={e => setSeekerForm(f => ({ ...f, city: e.target.value }))} />
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-500">Beskrivning *</label>
+                <textarea
+                  className="input-field min-h-[80px] resize-y"
+                  placeholder="Beskriv vad du söker, t.ex. storlek, läge, önskemål..."
+                  value={seekerForm.description}
+                  onChange={e => setSeekerForm(f => ({ ...f, description: e.target.value }))}
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Ditt namn *</label>
+                  <input type="text" className="input-field" placeholder="Förnamn Efternamn" value={seekerForm.contactName} onChange={e => setSeekerForm(f => ({ ...f, contactName: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Telefon</label>
+                  <input type="tel" className="input-field" placeholder="07X-XXX XX XX" value={seekerForm.contactPhone} onChange={e => setSeekerForm(f => ({ ...f, contactPhone: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">E-post</label>
+                  <input type="email" className="input-field" placeholder="din@epost.se" value={seekerForm.contactEmail} onChange={e => setSeekerForm(f => ({ ...f, contactEmail: e.target.value }))} />
+                </div>
+              </div>
+              {seekerError && <p className="text-sm text-red-600 font-medium">{seekerError}</p>}
+              <div className="flex gap-3 pt-1">
+                <button onClick={saveSeeker} disabled={savingSeeker} className="btn-primary text-sm">
+                  {savingSeeker ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {savingSeeker ? 'Publicerar...' : 'Publicera sökes-annons'}
+                </button>
+                <button onClick={() => { setShowSeekerForm(false); setSeekerError(null) }} className="btn-secondary text-sm">Avbryt</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {mySeekers.length === 0 && !showSeekerForm ? (
+          <div className="rounded-2xl border-2 border-dashed border-gray-200 py-10 text-center text-sm text-gray-400">
+            Du har inga aktiva sökes-annonser
+          </div>
+        ) : mySeekers.length > 0 ? (
+          <div className="space-y-2">
+            {mySeekers.map((s: any) => (
+              <div key={s.id} className={`card flex items-start gap-3 p-4 ${!s.is_active ? 'opacity-60' : ''}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                    <span className="badge badge-blue">{s.property_type}</span>
+                    <span className={`badge ${s.listing_type === 'forsaljning' ? 'badge-green' : 'badge-yellow'}`}>
+                      {s.listing_type === 'forsaljning' ? 'Köpes' : 'Söker hyra'}
+                    </span>
+                    {s.county && <span className="text-xs text-gray-500">{s.city ? `${s.city}, ` : ''}{s.county}</span>}
+                    {!s.is_active && <span className="badge badge-red">Inaktiv</span>}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{s.description}</p>
+                </div>
+                <div className="flex gap-1 shrink-0">
+                  <button
+                    onClick={() => toggleSeekerActive(s)}
+                    className={`p-1.5 rounded-lg transition text-xs ${s.is_active ? 'text-gray-400 hover:text-orange-600' : 'text-orange-500 hover:text-green-600'}`}
+                    title={s.is_active ? 'Inaktivera' : 'Aktivera'}
+                  >
+                    {s.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                  <button
+                    onClick={() => deleteSeeker(s.id)}
+                    disabled={deletingSeekerId === s.id}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 transition disabled:opacity-40"
+                    title="Ta bort"
+                  >
+                    {deletingSeekerId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }
