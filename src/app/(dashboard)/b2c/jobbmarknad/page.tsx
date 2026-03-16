@@ -9,6 +9,7 @@ type JobCategory = { id: number; name: string }
 
 type Job = {
   id: number
+  company_id: string
   title: string
   description: string
   category_id: number
@@ -46,18 +47,44 @@ export default function B2CJobbmarknad() {
     setSearching(true)
     setHasSearched(true)
     setExpandedId(null)
+
+    const today = new Date().toISOString().slice(0, 10)
+
+    // Hämta jobb – filtrera bort jobb med passerat sista ansökningsdatum
     let query = supabase
       .from('jobs')
-      .select('id,title,description,category_id,county,city,is_remote,salary_min,salary_max,salary_period,contact_email,application_url,application_deadline,created_at,companies(public_name,logo_url)')
+      .select('id,company_id,title,description,category_id,county,city,is_remote,salary_min,salary_max,salary_period,contact_email,application_url,application_deadline,created_at')
       .eq('is_active', true)
+      .or(`application_deadline.is.null,application_deadline.gte.${today}`)
       .order('created_at', { ascending: false })
 
     if (filterCategory) query = query.eq('category_id', parseInt(filterCategory))
     if (filterCounty)   query = query.or(`county.eq.${filterCounty},is_remote.eq.true`)
     if (filterCity)     query = query.eq('city', filterCity)
 
-    const { data } = await query
-    setJobs((data ?? []) as Job[])
+    const { data: jobData } = await query
+
+    if (jobData && jobData.length > 0) {
+      // Hämta företagsinfo separat (mer tillförlitligt än embedded join för B2C-användare)
+      const companyIds = [...new Set((jobData as any[]).map(j => j.company_id))]
+      const { data: companiesData } = await supabase
+        .from('companies')
+        .select('id, public_name, logo_url')
+        .in('id', companyIds)
+
+      const cMap: Record<string, { public_name: string; logo_url: string | null }> = {}
+      ;(companiesData ?? []).forEach((c: any) => { cMap[c.id] = c })
+
+      const merged = (jobData as any[]).map(j => ({
+        ...j,
+        companies: cMap[j.company_id] ? [cMap[j.company_id]] : null,
+      })) as Job[]
+
+      setJobs(merged)
+    } else {
+      setJobs([])
+    }
+
     setSearching(false)
   }, [filterCategory, filterCounty, filterCity])
 

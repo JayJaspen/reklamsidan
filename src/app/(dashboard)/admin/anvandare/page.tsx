@@ -57,6 +57,13 @@ export default function AdminAnvandare() {
       if (filter.gender) {
         rows = rows.filter(u => u.users_b2c?.gender === filter.gender)
       }
+      if (filter.county) {
+        const countyIdx = SWEDISH_COUNTIES.indexOf(filter.county) + 1 // county_id är 1-indexerat
+        rows = rows.filter(u =>
+          u.users_b2c?.county_id === countyIdx ||
+          u.users_b2b?.county_id === countyIdx
+        )
+      }
       const mapped: UserResult[] = rows.map(u => ({
         id:           u.id,
         user_type:    u.user_type,

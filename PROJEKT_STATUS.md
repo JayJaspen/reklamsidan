@@ -1,6 +1,6 @@
 # Reklamsidan – Projektstatus
 
-> Senast uppdaterad: 2026-03-11 (Session 7)
+> Senast uppdaterad: 2026-03-16 (Session 8)
 > Stack: Next.js 15 (App Router) + Supabase (PostgreSQL + RLS + Storage) + Tailwind CSS
 
 ---
@@ -138,6 +138,7 @@ Alla filer ligger i `supabase/migrations/`. Kör dem i Supabase Dashboard → SQ
 | `20260311_user_favorites_notify_jobs.sql` | **Session 6** – notify_jobs BOOLEAN på user_favorites | ⬜ Kör i Supabase |
 | `20260311_fix_ad_count_published.sql` | **Session 6** – RPC filterar nu på is_published = TRUE | ⬜ Kör i Supabase |
 | `20260311_jobs_is_billed.sql` | **Session 7** – is_billed BOOLEAN på jobs (faktureringsspårning) | ⬜ Kör i Supabase |
+| `20260316_session8_fixes.sql` | **Session 8** – billing_archive.jobs_data, jobs_company_read_own, expire_outdated_jobs(), companies read policy | ⬜ Kör i Supabase |
 
 ### `fix_saved_ads_and_category_rls.sql` (Session 4)
 
@@ -258,6 +259,18 @@ public/
 | 13 | Push-notiser: push_subscriptions tom | Diagnos | Auto-prompt tystas av webbläsaren om ingen interaktion. Lösning: klicka klock-ikonen manuellt. Nästa steg: mer synlig notis-banner |
 | 14 | Bugfix: Kan ej läsa jobbannonser i Favoritreklam | `b2c/favoritreklam/page.tsx` | Kortvy hade ingen expand-funktion. Ersatt med `<details>/<summary>` som visar full beskrivning + ansök-knapp |
 | 15 | Bugfix: PWA mobil visar blandat innehåll (Favoritreklam + Favoriter) | `b2c/favoritreklam/page.tsx` | Lade till `export const dynamic = 'force-dynamic'` – Next.js serverade cachad sida |
+
+### Session 8 (2026-03-16)
+
+| # | Uppgift | Fil(er) | Detalj |
+|---|---------|---------|--------|
+| 1 | Arkiverade fakturor synliga i admin | `admin/fakturering/page.tsx` | "Visa arkiv"-knapp visar tidigare perioder med utfällbar detalj per bolag |
+| 2 | Jobbannonser integrerade i företagets faktureringsrad | `admin/fakturering/page.tsx` | Bolag med ENBART jobbannonser (ej i billing_summary) visas nu i samma tabell. Jobs ingår i företagets expanderade vy |
+| 3 | Länfiltrering fungerar i admin Användare | `admin/anvandare/page.tsx` | `county_id`-matchning mot `SWEDISH_COUNTIES`-index – filtret applicerades inte tidigare |
+| 4 | Jobbannonser avpubliceras automatiskt | `b2c/jobbmarknad/page.tsx` + `20260316_session8_fixes.sql` | Query filtrerar bort utgångna jobb (`application_deadline < idag`). SQL-funktion `expire_outdated_jobs()` + pg_cron-instruktioner i migrationen |
+| 5 | Logotyp visas på jobbannonser för B2C | `b2c/jobbmarknad/page.tsx` | Företagsinfo hämtas separat (istf embedded join) – mer tillförlitligt för B2C-användare |
+| 6 | Företag kan se avpublicerade egna jobb | `20260316_session8_fixes.sql` | Policy `jobs_company_read_own` – tidigare visade RLS bara `is_active=true` |
+| 7 | billing_archive sparar nu även jobbannonser | `admin/fakturering/page.tsx` + `20260316_session8_fixes.sql` | Ny kolumn `jobs_data JSONB` – arkivering inkluderar både reklamblad och jobb |
 
 ### Session 7 (2026-03-11)
 
