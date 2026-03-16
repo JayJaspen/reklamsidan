@@ -116,6 +116,7 @@ export default function B2BFavoriter() {
     county = searchCounty,
   ) {
     setSearching(true)
+    setSearchResults([])
 
     let companyIds: string[] | null = null
 

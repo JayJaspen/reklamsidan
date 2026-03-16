@@ -24,6 +24,7 @@ export default function B2BFavoritreklam() {
   const [matchedProperties,  setMatchedProperties]  = useState<any[]>([])
   const [watchlistCount,     setWatchlistCount]     = useState(0)
   const [expandedPropertyId, setExpandedPropertyId] = useState<number | null>(null)
+  const [propCompanyMap, setPropCompanyMap] = useState<Record<string, { public_name: string; logo_url: string | null; website: string | null }>>({})
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -44,7 +45,7 @@ export default function B2BFavoritreklam() {
         setWatchlistCount(watchlists.length)
         const { data: allProps } = await supabase
           .from('properties')
-          .select('id, company_id, property_type, listing_type, title, description, address, city, county, price, price_period, size_sqm, build_year, image_urls')
+          .select('id, company_id, property_type, listing_type, title, description, address, city, county, price, price_period, size_sqm, build_year, image_urls, contact_name, contact_phone, contact_email')
           .eq('is_active', true)
           .in('property_type', B2B_TYPES)
           .order('created_at', { ascending: false })
@@ -55,7 +56,20 @@ export default function B2BFavoritreklam() {
             if (matchesWatchlist(p, wl)) { matchedIds.add(p.id); break }
           }
         }
-        setMatchedProperties((allProps ?? []).filter((p: any) => matchedIds.has(p.id)))
+        const matched = (allProps ?? []).filter((p: any) => matchedIds.has(p.id))
+        setMatchedProperties(matched)
+
+        // Fetch company data (logo + website) for matched properties
+        const cids = [...new Set(matched.map((p: any) => p.company_id as string))]
+        if (cids.length > 0) {
+          const { data: compData } = await supabase
+            .from('companies')
+            .select('id, public_name, logo_url, website')
+            .in('id', cids)
+          const cmap: Record<string, any> = {}
+          ;(compData ?? []).forEach((c: any) => { cmap[c.id] = c })
+          setPropCompanyMap(cmap)
+        }
       }
 
       if (favIds.length === 0) {
@@ -195,11 +209,16 @@ export default function B2BFavoritreklam() {
                     {isOpen && (
                       <div className="border-t border-gray-100 px-4 pb-4 pt-3">
                         {/* Image gallery */}
-                        {p.image_urls?.length > 1 && (
-                          <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-                            {p.image_urls.map((url: string, i: number) => (
-                              <img key={i} src={url} alt={`Bild ${i + 1}`} className="h-32 w-40 shrink-0 rounded-lg object-cover border border-gray-100" />
-                            ))}
+                        {p.image_urls?.length > 0 && (
+                          <div className="mb-4 overflow-x-auto">
+                            <div className="flex gap-2 pb-1">
+                              {p.image_urls.map((url: string, i: number) => (
+                                <img key={i} src={url} alt={`Bild ${i + 1}`} className="h-36 w-48 shrink-0 rounded-lg object-cover border border-gray-100" />
+                              ))}
+                            </div>
+                            {p.image_urls.length > 1 && (
+                              <p className="mt-1 text-xs text-gray-400">{p.image_urls.length} bilder – scrolla för att se alla</p>
+                            )}
                           </div>
                         )}
                         {p.description && (
@@ -218,6 +237,37 @@ export default function B2BFavoritreklam() {
                             </div>
                           )}
                         </div>
+                        {/* Contact info */}
+                        {(p.contact_name || p.contact_phone || p.contact_email) && (
+                          <div className="mb-3 rounded-xl bg-primary-50 border border-primary-100 px-4 py-3">
+                            <p className="text-xs font-semibold text-primary-700 mb-2">Kontakt</p>
+                            <div className="space-y-1 text-sm">
+                              {p.contact_name  && <p className="text-gray-700">{p.contact_name}</p>}
+                              {p.contact_phone && <p><a href={`tel:${p.contact_phone}`} className="text-primary-600 hover:underline">{p.contact_phone}</a></p>}
+                              {p.contact_email && <p><a href={`mailto:${p.contact_email}`} className="text-primary-600 hover:underline">{p.contact_email}</a></p>}
+                            </div>
+                          </div>
+                        )}
+                        {/* Company info + website */}
+                        {propCompanyMap[p.company_id] && (
+                          <div className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3">
+                            {propCompanyMap[p.company_id].logo_url ? (
+                              <img src={propCompanyMap[p.company_id].logo_url!} alt={propCompanyMap[p.company_id].public_name} className="h-8 w-8 rounded-md object-contain border border-gray-200 bg-white p-0.5" />
+                            ) : (
+                              <div className="h-8 w-8 rounded-md bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">
+                                {propCompanyMap[p.company_id].public_name[0]}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-700">{propCompanyMap[p.company_id].public_name}</p>
+                              {propCompanyMap[p.company_id].website && (
+                                <a href={propCompanyMap[p.company_id].website!} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-600 hover:underline">
+                                  Besök webbplats →
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

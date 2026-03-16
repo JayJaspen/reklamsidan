@@ -46,6 +46,7 @@ export default function B2BAllReklam() {
     setSelectedCompany(null)
     setAds([])
     setActiveLetter('')
+    setCompanies([])
 
     let query = supabase
       .from('companies')

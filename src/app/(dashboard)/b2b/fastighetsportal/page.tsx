@@ -407,10 +407,13 @@ export default function B2BFastighetsportal() {
                               className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70">‹</button>
                             <button onClick={e => { e.stopPropagation(); nextImg(p.id, p.image_urls.length) }}
                               className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70">›</button>
-                            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
-                              {p.image_urls.map((_, i) => (
-                                <div key={i} className={`h-1.5 w-1.5 rounded-full ${i === imgIdx ? 'bg-white' : 'bg-white/50'}`} />
-                              ))}
+                            <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center gap-2">
+                              <div className="flex gap-1">
+                                {p.image_urls.map((_, i) => (
+                                  <div key={i} className={`h-1.5 w-1.5 rounded-full ${i === imgIdx ? 'bg-white' : 'bg-white/50'}`} />
+                                ))}
+                              </div>
+                              <span className="rounded-full bg-black/50 px-2 py-0.5 text-xs text-white">{imgIdx + 1} av {p.image_urls.length}</span>
                             </div>
                           </>
                         )}

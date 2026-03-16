@@ -46,6 +46,7 @@ export default function B2CAllReklam() {
     setSelectedCompany(null)
     setAds([])
     setActiveLetter('')
+    setCompanies([])
 
     // Only show companies that target B2C (sends_b2c = true)
     let query = supabase
