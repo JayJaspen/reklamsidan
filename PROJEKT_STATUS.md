@@ -138,7 +138,8 @@ Alla filer ligger i `supabase/migrations/`. Kör dem i Supabase Dashboard → SQ
 | `20260311_user_favorites_notify_jobs.sql` | **Session 6** – notify_jobs BOOLEAN på user_favorites | ⬜ Kör i Supabase |
 | `20260311_fix_ad_count_published.sql` | **Session 6** – RPC filterar nu på is_published = TRUE | ⬜ Kör i Supabase |
 | `20260311_jobs_is_billed.sql` | **Session 7** – is_billed BOOLEAN på jobs (faktureringsspårning) | ⬜ Kör i Supabase |
-| `20260316_session8_fixes.sql` | **Session 8** – billing_archive.jobs_data, jobs_company_read_own, expire_outdated_jobs(), companies read policy | ⬜ Kör i Supabase |
+| `20260316_session8_fixes.sql` | **Session 8** – billing_archive.jobs_data, jobs_company_read_own, expire_outdated_jobs(), companies read policy | ✅ Körd |
+| `20260316_fastighetsportal.sql` | **Session 8** – properties-tabell, RLS, storage-policies för property-images | ⬜ Kör i Supabase |
 
 ### `fix_saved_ads_and_category_rls.sql` (Session 4)
 
@@ -260,7 +261,27 @@ public/
 | 14 | Bugfix: Kan ej läsa jobbannonser i Favoritreklam | `b2c/favoritreklam/page.tsx` | Kortvy hade ingen expand-funktion. Ersatt med `<details>/<summary>` som visar full beskrivning + ansök-knapp |
 | 15 | Bugfix: PWA mobil visar blandat innehåll (Favoritreklam + Favoriter) | `b2c/favoritreklam/page.tsx` | Lade till `export const dynamic = 'force-dynamic'` – Next.js serverade cachad sida |
 
-### Session 8 (2026-03-16)
+### Session 8 (2026-03-16) – del 2: Fastighetsportal
+
+| # | Uppgift | Fil(er) | Detalj |
+|---|---------|---------|--------|
+| 1 | Fastighetsportal för företag | `foretag/fastighetsportal/page.tsx` (ny) | Publicera/redigera/avpublicera/ta bort fastigheter. Formulär med typ, annonstyp, pris, storlek, rum, byggnadsår, bilduppladdning (max 5) |
+| 2 | Fastighetsportal för B2C | `b2c/fastighetsportal/page.tsx` (ny) | Bläddra bland bostäder (Lägenhet, Villa, Radhus, Tomt). Bildgalleri, filter på typ/annonstyp/län |
+| 3 | Fastighetsportal för B2B | `b2b/fastighetsportal/page.tsx` (ny) | Bläddra bland lokaler (Lagerlokal, Butikslokal). Bildgalleri, filter |
+| 4 | Navigation uppdaterad | `b2c/layout.tsx`, `b2b/layout.tsx`, `foretag/layout.tsx` | 🏠 Fastighetsportal tillagd i alla tre navbarer |
+| 5 | Databas + Storage | `20260316_fastighetsportal.sql` | `properties`-tabell med RLS. Storage-bucket `property-images` (Public) skapas manuellt |
+
+**Prissättning fastighetsannonser:**
+| Typ | Pris |
+|-----|------|
+| Till försäljning | 990 kr exkl. moms |
+| Uthyrning | 490 kr exkl. moms |
+
+**⚠️ Manuellt steg i Supabase:**
+1. Kör `20260316_fastighetsportal.sql` i SQL Editor
+2. Gå till Storage → New bucket → Namn: **property-images** → Public: **ON**
+
+### Session 8 (2026-03-16) – del 1
 
 | # | Uppgift | Fil(er) | Detalj |
 |---|---------|---------|--------|

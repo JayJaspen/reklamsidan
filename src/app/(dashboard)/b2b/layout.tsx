@@ -9,8 +9,9 @@ const B2B_TABS = [
   { href: '/b2b/intresse',      label: '🎯 Intressereklam' },
   { href: '/b2b/all-reklam',    label: '🔍 All reklam' },
   { href: '/b2b/sparad',        label: '📁 Sparad reklam' },
-  { href: '/b2b/favoriter',     label: '🏢 Favoriter' },
-  { href: '/b2b/min-sida',      label: '🏢 Min sida' },
+  { href: '/b2b/favoriter',         label: '🏢 Favoriter' },
+  { href: '/b2b/fastighetsportal',  label: '🏗️ Fastighetsportal' },
+  { href: '/b2b/min-sida',          label: '🏢 Min sida' },
 ]
 
 export default async function B2BLayout({ children }: { children: React.ReactNode }) {
