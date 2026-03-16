@@ -110,7 +110,7 @@ export default function ForetagFakturor() {
       if (billing)       setCurrent(billing as CurrentBilling)
       if (jobs)          setUnbilledJobs(jobs as UnbilledJob[])
       if (props)         setUnbilledProperties(props as UnbilledProperty[])
-      if (seekPurchases) setUnbilledSeekerPurchases(seekPurchases as UnbilledSeekerPurchase[])
+      if (seekPurchases) setUnbilledSeekerPurchases(seekPurchases as unknown as UnbilledSeekerPurchase[])
       if (hist)          setHistory(hist as HistoryRow[])
       setLoading(false)
     })
