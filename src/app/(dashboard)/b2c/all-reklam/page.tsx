@@ -78,31 +78,42 @@ export default function B2CAllReklam() {
       }
     }
 
-    // County filter: look up company_ids via company_counties join table
-    if (filter.county) {
-      const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(filter.county)
-      if (countyIdx >= 0) {
-        const { data: countyLinks } = await supabase
-          .from('company_counties')
-          .select('company_id')
-          .eq('county_id', countyIdx + 1)
-        const countyCompanyIds = (countyLinks ?? []).map((r: any) => r.company_id as string)
-        if (countyCompanyIds.length === 0) {
-          setCompanies([])
-          setLoading(false)
-          return
-        }
-        query = query.in('id', countyCompanyIds)
-      }
-    }
-
     if (filter.query) {
       query = query.ilike('public_name', `%${filter.query}%`)
     }
 
     const { data } = await query.order('public_name')
+    let filteredIds = (data ?? []).map(c => c.id)
 
-    const filteredIds = (data ?? []).map(c => c.id)
+    if (filteredIds.length === 0) {
+      setCompanies([])
+      setLoading(false)
+      return
+    }
+
+    // County filter – applied after fetching companies.
+    // Companies with NO county entries are treated as "nationwide" and always included.
+    if (filter.county) {
+      const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(filter.county)
+      if (countyIdx >= 0) {
+        const selectedCountyId = countyIdx + 1
+        const { data: countyRows } = await supabase
+          .from('company_counties')
+          .select('company_id, county_id')
+          .in('company_id', filteredIds)
+        const countyMap: Record<string, number[]> = {}
+        ;(countyRows ?? []).forEach((r: any) => {
+          if (!countyMap[r.company_id]) countyMap[r.company_id] = []
+          countyMap[r.company_id].push(r.county_id)
+        })
+        filteredIds = filteredIds.filter(id => {
+          const counties = countyMap[id]
+          if (!counties || counties.length === 0) return true  // Inget län = rikstäckande
+          return counties.includes(selectedCountyId)
+        })
+      }
+    }
+
     if (filteredIds.length === 0) {
       setCompanies([])
       setLoading(false)

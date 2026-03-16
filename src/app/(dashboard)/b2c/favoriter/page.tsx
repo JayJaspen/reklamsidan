@@ -57,13 +57,14 @@ export default function B2CFavoriter() {
   const [searchResults, setSearchResults] = useState<Company[]>([])
   const [searching, setSearching] = useState(false)
 
-  const [activeLetter, setActiveLetter] = useState('')
+  const [favLetter,    setFavLetter]    = useState('')
+  const [searchLetter, setSearchLetter] = useState('')
 
   // Set av company-id:s som följs (för snabb lookup)
   const followedIds = useMemo(() => new Set(favorites.map(f => f.id)), [favorites])
 
-  const filteredFavorites  = activeLetter ? favorites.filter(c => c.public_name.toUpperCase().startsWith(activeLetter)) : favorites
-  const filteredSearchResults = activeLetter ? searchResults.filter(c => c.public_name.toUpperCase().startsWith(activeLetter)) : searchResults
+  const filteredFavorites     = favLetter    ? favorites.filter(c => c.public_name.toUpperCase().startsWith(favLetter))    : favorites
+  const filteredSearchResults = searchLetter ? searchResults.filter(c => c.public_name.toUpperCase().startsWith(searchLetter)) : searchResults
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -156,24 +157,6 @@ export default function B2CFavoriter() {
       }
     }
 
-    // Länsfilter
-    let countyCompanyIds: string[] | null = null
-    if (county) {
-      const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(county)
-      if (countyIdx >= 0) {
-        const { data: countyLinks } = await supabase
-          .from('company_counties')
-          .select('company_id')
-          .eq('county_id', countyIdx + 1)
-        countyCompanyIds = (countyLinks ?? []).map((r: any) => r.company_id as string)
-        if (countyCompanyIds.length === 0) {
-          setSearchResults([])
-          setSearching(false)
-          return
-        }
-      }
-    }
-
     let q = supabase
       .from('companies')
       .select('id, public_name, logo_url, company_description, website')
@@ -183,17 +166,40 @@ export default function B2CFavoriter() {
 
     if (name) q = q.ilike('public_name', `%${name}%`)
     if (companyIds) q = q.in('id', companyIds)
-    if (countyCompanyIds) q = q.in('id', countyCompanyIds)
 
     const { data: companies } = await q
 
-    if (!companies || companies.length === 0) {
+    // County filter – companies with NO county entries are treated as "nationwide"
+    let filteredCompanies = companies ?? []
+    if (county) {
+      const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(county)
+      if (countyIdx >= 0) {
+        const selectedCountyId = countyIdx + 1
+        const allIds = filteredCompanies.map(c => c.id)
+        const { data: countyRows } = await supabase
+          .from('company_counties')
+          .select('company_id, county_id')
+          .in('company_id', allIds)
+        const countyMap: Record<string, number[]> = {}
+        ;(countyRows ?? []).forEach((r: any) => {
+          if (!countyMap[r.company_id]) countyMap[r.company_id] = []
+          countyMap[r.company_id].push(r.county_id)
+        })
+        filteredCompanies = filteredCompanies.filter(c => {
+          const counties = countyMap[c.id]
+          if (!counties || counties.length === 0) return true  // Inget län = rikstäckande
+          return counties.includes(selectedCountyId)
+        })
+      }
+    }
+
+    if (filteredCompanies.length === 0) {
       setSearchResults([])
       setSearching(false)
       return
     }
 
-    const ids = companies.map(c => c.id)
+    const ids = filteredCompanies.map(c => c.id)
     const { data: catLinks } = await supabase
       .from('company_categories_b2c')
       .select('company_id, categories_b2c(name)')
@@ -205,7 +211,7 @@ export default function B2CFavoriter() {
       if (row.categories_b2c?.name) catMap[row.company_id].push(row.categories_b2c.name)
     })
 
-    setSearchResults(companies.map(c => ({ ...c, categories: catMap[c.id] ?? [] })))
+    setSearchResults(filteredCompanies.map(c => ({ ...c, categories: catMap[c.id] ?? [] })))
     setSearching(false)
   }
 
@@ -263,7 +269,7 @@ export default function B2CFavoriter() {
           </span>
         </div>
 
-        <AlphabetBar active={activeLetter} onChange={setActiveLetter} />
+        <AlphabetBar active={favLetter} onChange={setFavLetter} />
 
         {favorites.length === 0 ? (
           <div className="rounded-2xl border-2 border-dashed border-gray-200 py-12 text-center">
@@ -271,7 +277,7 @@ export default function B2CFavoriter() {
             <p className="text-sm text-gray-400">Du följer inga företag än. Sök nedan för att hitta företag.</p>
           </div>
         ) : filteredFavorites.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-6">Inga favorit-företag börjar på <strong>{activeLetter}</strong></p>
+          <p className="text-sm text-gray-400 text-center py-6">Inga favorit-företag börjar på <strong>{favLetter}</strong></p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {filteredFavorites.map(c => (
@@ -350,14 +356,14 @@ export default function B2CFavoriter() {
         ) : (
           <>
             {searchResults.length > 0 && (
-              <AlphabetBar active={activeLetter} onChange={setActiveLetter} />
+              <AlphabetBar active={searchLetter} onChange={setSearchLetter} />
             )}
             {searchResults.length === 0 ? (
               <div className="rounded-xl border border-gray-200 py-10 text-center text-sm text-gray-400">
                 Inga företag matchade din sökning
               </div>
             ) : filteredSearchResults.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-6">Inga företag börjar på <strong>{activeLetter}</strong></p>
+              <p className="text-sm text-gray-400 text-center py-6">Inga företag börjar på <strong>{searchLetter}</strong></p>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
                 {filteredSearchResults.map(c => (
