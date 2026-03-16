@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { JOB_COUNTIES } from '@/lib/utils'
-import { Loader2, ChevronDown, ChevronUp, Home, Search, X } from 'lucide-react'
+import { Loader2, ChevronDown, ChevronUp, Home, X } from 'lucide-react'
 
 const B2C_TYPES = ['Lägenhet', 'Villa', 'Radhus', 'Tomt'] as const
+const ROOM_OPTIONS = ['1', '1.5', '2', '2.5', '3', '3.5', '4', '4.5', '5', '5.5', '6', '7', '8']
+const TYPES_WITH_ROOMS = ['Lägenhet', 'Villa', 'Radhus']
 
 type Property = {
   id: number
@@ -36,9 +38,11 @@ export default function B2CFastighetsportal() {
   const [imgIndex,    setImgIndex]    = useState<Record<number, number>>({})
 
   // Filter
-  const [filterType,    setFilterType]    = useState('')
-  const [filterListing, setFilterListing] = useState('')
-  const [filterCounty,  setFilterCounty]  = useState('')
+  const [filterType,     setFilterType]     = useState('')
+  const [filterListing,  setFilterListing]  = useState('')
+  const [filterCounty,   setFilterCounty]   = useState('')
+  const [filterMaxPrice, setFilterMaxPrice] = useState('')
+  const [filterMinRooms, setFilterMinRooms] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -75,6 +79,16 @@ export default function B2CFastighetsportal() {
     if (filterType    && p.property_type !== filterType)    return false
     if (filterListing && p.listing_type  !== filterListing) return false
     if (filterCounty  && p.county        !== filterCounty)  return false
+    if (filterMaxPrice) {
+      const max = parseInt(filterMaxPrice)
+      if (!isNaN(max) && p.price != null && p.price > max) return false
+    }
+    if (filterMinRooms) {
+      const min = parseFloat(filterMinRooms)
+      if (!isNaN(min) && TYPES_WITH_ROOMS.includes(p.property_type)) {
+        if (p.rooms == null || p.rooms < min) return false
+      }
+    }
     return true
   })
 
@@ -82,9 +96,11 @@ export default function B2CFastighetsportal() {
     setFilterType('')
     setFilterListing('')
     setFilterCounty('')
+    setFilterMaxPrice('')
+    setFilterMinRooms('')
   }
 
-  const hasFilters = filterType || filterListing || filterCounty
+  const hasFilters = filterType || filterListing || filterCounty || filterMaxPrice || filterMinRooms
 
   function prevImg(id: number, total: number) {
     setImgIndex(prev => ({ ...prev, [id]: ((prev[id] ?? 0) - 1 + total) % total }))
@@ -115,7 +131,7 @@ export default function B2CFastighetsportal() {
           </div>
           <div>
             <label className="mb-1 block text-xs font-medium text-gray-500 uppercase tracking-wide">Annonstyp</label>
-            <select className="input-field" value={filterListing} onChange={e => setFilterListing(e.target.value)}>
+            <select className="input-field" value={filterListing} onChange={e => { setFilterListing(e.target.value); setFilterMaxPrice('') }}>
               <option value="">Alla</option>
               <option value="forsaljning">Till försäljning</option>
               <option value="uthyrning">Uthyrning</option>
@@ -126,6 +142,39 @@ export default function B2CFastighetsportal() {
             <select className="input-field" value={filterCounty} onChange={e => setFilterCounty(e.target.value)}>
               <option value="">Alla län</option>
               {JOB_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          {filterListing !== 'uthyrning' && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500 uppercase tracking-wide">Maxpris (kr)</label>
+              <input
+                type="number"
+                className="input-field"
+                placeholder="t.ex. 3000000"
+                min={0}
+                value={filterMaxPrice}
+                onChange={e => setFilterMaxPrice(e.target.value)}
+              />
+            </div>
+          )}
+          {filterListing === 'uthyrning' && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-500 uppercase tracking-wide">Maxhyra / avgift (kr/mån)</label>
+              <input
+                type="number"
+                className="input-field"
+                placeholder="t.ex. 10000"
+                min={0}
+                value={filterMaxPrice}
+                onChange={e => setFilterMaxPrice(e.target.value)}
+              />
+            </div>
+          )}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500 uppercase tracking-wide">Antal rum (min)</label>
+            <select className="input-field" value={filterMinRooms} onChange={e => setFilterMinRooms(e.target.value)}>
+              <option value="">Alla</option>
+              {ROOM_OPTIONS.map(r => <option key={r} value={r}>{r} rum</option>)}
             </select>
           </div>
         </div>

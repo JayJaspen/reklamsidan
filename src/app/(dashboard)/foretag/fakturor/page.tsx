@@ -3,9 +3,23 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { formatSEK } from '@/lib/utils'
-import { TrendingUp, Calendar, Receipt, Briefcase, Info } from 'lucide-react'
+import { TrendingUp, Calendar, Receipt, Briefcase, Home, Info } from 'lucide-react'
 
 const JOB_PRICE = 1490
+
+// Fastighetsannonspriser (exkl. moms)
+const PROP_B2C_FORSALJNING = 2990
+const PROP_B2C_UTHYRNING   =  990
+const PROP_B2B_FORSALJNING = 6990
+const PROP_B2B_UTHYRNING   = 2990
+
+const B2B_PROPERTY_TYPES = ['Lagerlokal', 'Butikslokal']
+
+function propPrice(propertyType: string, listingType: string): number {
+  const isB2B = B2B_PROPERTY_TYPES.includes(propertyType)
+  if (listingType === 'uthyrning') return isB2B ? PROP_B2B_UTHYRNING : PROP_B2C_UTHYRNING
+  return isB2B ? PROP_B2B_FORSALJNING : PROP_B2C_FORSALJNING
+}
 
 /** Returns the next quarterly invoice due date: 31/3, 30/6, 30/9, 31/12 */
 function getNextInvoiceDate(): Date {
@@ -40,23 +54,38 @@ type UnbilledJob = {
   created_at: string
 }
 
+type UnbilledProperty = {
+  id:            number
+  title:         string
+  property_type: string
+  listing_type:  string
+  created_at:    string
+}
+
 export default function ForetagFakturor() {
   const supabase = createClient()
-  const [loading, setLoading]           = useState(true)
-  const [current, setCurrent]           = useState<CurrentBilling | null>(null)
-  const [unbilledJobs, setUnbilledJobs] = useState<UnbilledJob[]>([])
-  const [history, setHistory]           = useState<HistoryRow[]>([])
+  const [loading, setLoading]                       = useState(true)
+  const [current, setCurrent]                       = useState<CurrentBilling | null>(null)
+  const [unbilledJobs, setUnbilledJobs]             = useState<UnbilledJob[]>([])
+  const [unbilledProperties, setUnbilledProperties] = useState<UnbilledProperty[]>([])
+  const [history, setHistory]                       = useState<HistoryRow[]>([])
   const nextInvoice = getNextInvoiceDate()
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
 
-      const [{ data: billing }, { data: jobs }, { data: hist }] = await Promise.all([
+      const [{ data: billing }, { data: jobs }, { data: props }, { data: hist }] = await Promise.all([
         supabase.rpc('get_my_billing_current').maybeSingle(),
         supabase
           .from('jobs')
           .select('id, title, created_at')
+          .eq('company_id', user.id)
+          .eq('is_billed', false)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('properties')
+          .select('id, title, property_type, listing_type, created_at')
           .eq('company_id', user.id)
           .eq('is_billed', false)
           .order('created_at', { ascending: false }),
@@ -65,14 +94,16 @@ export default function ForetagFakturor() {
 
       if (billing) setCurrent(billing as CurrentBilling)
       if (jobs)    setUnbilledJobs(jobs as UnbilledJob[])
+      if (props)   setUnbilledProperties(props as UnbilledProperty[])
       if (hist)    setHistory(hist as HistoryRow[])
       setLoading(false)
     })
   }, [])
 
-  const adsTotal    = current ? Number(current.total_amount) : 0
-  const jobsTotal   = unbilledJobs.length * JOB_PRICE
-  const periodTotal = adsTotal + jobsTotal
+  const adsTotal        = current ? Number(current.total_amount) : 0
+  const jobsTotal       = unbilledJobs.length * JOB_PRICE
+  const propertiesTotal = unbilledProperties.reduce((sum, p) => sum + propPrice(p.property_type, p.listing_type), 0)
+  const periodTotal     = adsTotal + jobsTotal + propertiesTotal
 
   const readBreakdown: [string, number][] = current
     ? [
@@ -97,10 +128,7 @@ export default function ForetagFakturor() {
       {/* Info banner */}
       <div className="mb-6 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-400" />
-        <p>
-          Fakturor skickas kvartalsvis: <strong>31 mars, 30 juni, 30 september</strong> och <strong>31 december</strong>.
-          Alla belopp är exklusive moms.
-        </p>
+        <p>Fakturor skickas kvartalsvis och alla belopp är exkl. moms.</p>
       </div>
 
       {/* Current period card */}
@@ -154,6 +182,31 @@ export default function ForetagFakturor() {
                       <span>{formatSEK(JOB_PRICE)}</span>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+            {unbilledProperties.length > 0 && (
+              <div>
+                <div className="flex justify-between text-sm text-gray-700">
+                  <span>🏠 Fastighetsannonser ({unbilledProperties.length} st)</span>
+                  <span className="font-medium">{formatSEK(propertiesTotal)}</span>
+                </div>
+                <div className="mt-1.5 space-y-1 pl-4">
+                  {unbilledProperties.map(p => {
+                    const price = propPrice(p.property_type, p.listing_type)
+                    return (
+                      <div key={p.id} className="flex items-center justify-between text-xs text-gray-400">
+                        <span className="flex items-center gap-1">
+                          <Home className="h-3 w-3" />
+                          {p.title}
+                          <span className="text-gray-300 ml-1">
+                            · {p.property_type} · {p.listing_type === 'forsaljning' ? 'Försäljning' : 'Uthyrning'}
+                          </span>
+                        </span>
+                        <span>{formatSEK(price)}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}

@@ -9,8 +9,16 @@ import {
 } from 'lucide-react'
 
 // ── Priser ───────────────────────────────────────────────────
-const PRICE_FORSALJNING = 990   // kr exkl. moms per annons
-const PRICE_UTHYRNING   = 490   // kr exkl. moms per annons
+const PRICE_B2C_FORSALJNING = 2990  // kr exkl. moms per annons
+const PRICE_B2C_UTHYRNING   =  990  // kr exkl. moms per annons
+const PRICE_B2B_FORSALJNING = 6990  // kr exkl. moms per annons
+const PRICE_B2B_UTHYRNING   = 2990  // kr exkl. moms per annons
+
+function getPrice(propertyType: string, listingType: string): number {
+  const isB2B = B2B_TYPES.includes(propertyType as any)
+  if (listingType === 'uthyrning') return isB2B ? PRICE_B2B_UTHYRNING : PRICE_B2C_UTHYRNING
+  return isB2B ? PRICE_B2B_FORSALJNING : PRICE_B2C_FORSALJNING
+}
 
 // ── Fastighetstyper ──────────────────────────────────────────
 const B2C_TYPES = ['Lägenhet', 'Villa', 'Radhus', 'Tomt'] as const
@@ -134,11 +142,12 @@ export default function ForetagFastighetsportal() {
 
   function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
-    const remaining = MAX_IMAGES - existingImages.length
+    const currentCount = existingImages.length + newImageFiles.length
+    const remaining = MAX_IMAGES - currentCount
+    if (remaining <= 0) return
     const selected = files.slice(0, remaining)
-    newPreviews.forEach(u => URL.revokeObjectURL(u))
-    setNewImageFiles(selected)
-    setNewPreviews(selected.map(f => URL.createObjectURL(f)))
+    setNewImageFiles(prev => [...prev, ...selected])
+    setNewPreviews(prev => [...prev, ...selected.map(f => URL.createObjectURL(f))])
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -269,11 +278,15 @@ export default function ForetagFastighetsportal() {
       {/* Prisinformation */}
       <div className="mb-6 flex items-start gap-3 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary-500" />
-        <p>
-          Försäljningsannons: <strong>{PRICE_FORSALJNING.toLocaleString('sv-SE')} kr</strong> exkl. moms ·
-          Uthyrningsannons: <strong>{PRICE_UTHYRNING.toLocaleString('sv-SE')} kr</strong> exkl. moms.
-          Debiteras på nästkommande kvartalsfaktura.
-        </p>
+        <div>
+          <p className="font-medium mb-1">Priser per annons (exkl. moms) – debiteras på nästkommande kvartalsfaktura</p>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-xs">
+            <span>Bostäder – försäljning: <strong>{PRICE_B2C_FORSALJNING.toLocaleString('sv-SE')} kr</strong></span>
+            <span>Bostäder – uthyrning: <strong>{PRICE_B2C_UTHYRNING.toLocaleString('sv-SE')} kr</strong></span>
+            <span>Lokaler – försäljning: <strong>{PRICE_B2B_FORSALJNING.toLocaleString('sv-SE')} kr</strong></span>
+            <span>Lokaler – uthyrning: <strong>{PRICE_B2B_UTHYRNING.toLocaleString('sv-SE')} kr</strong></span>
+          </div>
+        </div>
       </div>
 
       {/* ── Formulär ── */}
