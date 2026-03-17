@@ -32,7 +32,11 @@ export default function PdfViewer({ url, zoom = 1 }: Props) {
         const pdfjsLib = await import('pdfjs-dist')
         pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
-        const pdf = await pdfjsLib.getDocument({ url, withCredentials: false }).promise
+        // Proxya URL:en via /api/pdf för att undvika CORS-problem med Supabase storage.
+        // PDF.js gör en fetch()-request från webbläsaren vilket kräver CORS-headers,
+        // medan <img>/<video> inte har samma begränsning.
+        const proxyUrl = `/api/pdf?url=${encodeURIComponent(url)}`
+        const pdf = await pdfjsLib.getDocument({ url: proxyUrl, withCredentials: false }).promise
         if (cancelled) return
 
         pdfRef.current = pdf
