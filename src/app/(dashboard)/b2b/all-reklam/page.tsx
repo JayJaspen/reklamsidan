@@ -209,7 +209,7 @@ export default function B2BAllReklam() {
             </select>
           </div>
         </div>
-        <button onClick={handleSearch} disabled={loading}
+        <button onClick={() => handleSearch()} disabled={loading}
           className="btn-primary mt-4 gap-2">
           <Search className="h-4 w-4" />
           {loading ? 'Söker...' : 'Sök'}
