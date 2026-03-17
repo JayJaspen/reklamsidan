@@ -318,7 +318,11 @@ export default function B2CFavoriter() {
             <div>
               <label className="mb-1.5 block text-xs font-medium text-gray-500">Kategori</label>
               <select className="input-field" value={searchCategory}
-                onChange={e => setSearchCategory(e.target.value)}>
+                onChange={e => {
+                  const category = e.target.value
+                  setSearchCategory(category)
+                  handleSearch(searchName, category, searchCounty)
+                }}>
                 <option value="">Alla kategorier</option>
                 {parentCats.map(parent => (
                   <optgroup key={parent.id} label={parent.name}>
@@ -332,7 +336,11 @@ export default function B2CFavoriter() {
             <div>
               <label className="mb-1.5 block text-xs font-medium text-gray-500">Län</label>
               <select className="input-field" value={searchCounty}
-                onChange={e => setSearchCounty(e.target.value)}>
+                onChange={e => {
+                  const county = e.target.value
+                  setSearchCounty(county)
+                  handleSearch(searchName, searchCategory, county)
+                }}>
                 <option value="">Alla län</option>
                 {SWEDISH_COUNTIES.map(c => (
                   <option key={c} value={c}>{c}</option>

@@ -40,7 +40,9 @@ export default function B2BAllReklam() {
       .then(({ data }) => { if (data) setAllCategories(data) })
   }, [])
 
-  async function handleSearch() {
+  // currentFilter kan skickas in direkt från onChange-hanterare för att undvika
+  // stale-closure-problem när state inte hunnit uppdateras ännu
+  async function handleSearch(currentFilter = filter) {
     setLoading(true)
     setSearched(true)
     setSelectedCompany(null)
@@ -55,8 +57,8 @@ export default function B2BAllReklam() {
       .eq('sends_b2b', true)  // Only show B2B-capable companies
 
     // Category filter
-    if (filter.category) {
-      const catId = parseInt(filter.category)
+    if (currentFilter.category) {
+      const catId = parseInt(currentFilter.category)
       const { data: subCats } = await supabase
         .from('categories_b2b')
         .select('id')
@@ -78,8 +80,8 @@ export default function B2BAllReklam() {
       }
     }
 
-    if (filter.query) {
-      query = query.ilike('public_name', `%${filter.query}%`)
+    if (currentFilter.query) {
+      query = query.ilike('public_name', `%${currentFilter.query}%`)
     }
 
     const { data } = await query.order('public_name')
@@ -92,8 +94,8 @@ export default function B2BAllReklam() {
     }
 
     // County filter – companies with NO county entries are treated as "nationwide"
-    if (filter.county) {
-      const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(filter.county)
+    if (currentFilter.county) {
+      const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(currentFilter.county)
       if (countyIdx >= 0) {
         const selectedCountyId = countyIdx + 1
         const { data: countyRows } = await supabase
@@ -177,7 +179,12 @@ export default function B2BAllReklam() {
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-600">Kategori</label>
             <select className="input-field" value={filter.category}
-              onChange={e => setFilter(f => ({ ...f, category: e.target.value }))}>
+              onChange={e => {
+                const category = e.target.value
+                const newFilter = { ...filter, category }
+                setFilter(newFilter)
+                if (searched) handleSearch(newFilter)
+              }}>
               <option value="">Alla kategorier</option>
               {parentCats.map(parent => (
                 <optgroup key={parent.id} label={parent.name}>
@@ -191,7 +198,12 @@ export default function B2BAllReklam() {
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-600">Län</label>
             <select className="input-field" value={filter.county}
-              onChange={e => setFilter(f => ({ ...f, county: e.target.value }))}>
+              onChange={e => {
+                const county = e.target.value
+                const newFilter = { ...filter, county }
+                setFilter(newFilter)
+                if (searched) handleSearch(newFilter)
+              }}>
               <option value="">Alla län</option>
               {SWEDISH_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
