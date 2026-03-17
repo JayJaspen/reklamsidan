@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Download, Building2, X, Globe, Mail, Phone, MapPin, ShieldOff, ShieldCheck, AlertTriangle } from 'lucide-react'
+import { Search, Download, Building2, X, Globe, Mail, Phone, MapPin, ShieldOff, ShieldCheck, AlertTriangle, Lock } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
 const SWEDISH_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZÅÄÖ'.split('')
@@ -17,8 +17,8 @@ type CompanyResult = {
   contact_phone: string
   website: string
   is_active: boolean
+  is_mandatory_follow: boolean
   company_description: string | null
-  counties: string[] | null
   sends_b2b: boolean
   logo_url: string | null
   billing_method: string | null
@@ -39,6 +39,8 @@ export default function AdminForetag() {
   const [selected, setSelected]   = useState<CompanyResult | null>(null)
   const [categories, setCategories] = useState<{ id: number; name: string; parent_id: number | null; type: 'b2b' | 'b2c' }[]>([])
   const [confirmBlock, setConfirmBlock] = useState<CompanyResult | null>(null)
+  const [togglingMandatory, setTogglingMandatory] = useState(false)
+  const [selectedCountyNames, setSelectedCountyNames] = useState<string[]>([])
   const [activeLetter, setActiveLetter] = useState<string | null>(null)
   const letterRefs = useRef<Record<string, HTMLTableRowElement | null>>({})
 
@@ -52,6 +54,20 @@ export default function AdminForetag() {
     const el = letterRefs.current[letter]
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+
+  // Load counties for selected company when modal opens
+  useEffect(() => {
+    if (!selected) { setSelectedCountyNames([]); return }
+    supabase
+      .from('company_counties')
+      .select('county_id')
+      .eq('company_id', selected.id)
+      .then(({ data }) => {
+        const ids = (data ?? []).map((r: any) => r.county_id as number)
+        const names = ids.map(id => SWEDISH_COUNTIES[id - 1]).filter(Boolean)
+        setSelectedCountyNames(names)
+      })
+  }, [selected])
 
   // Load categories on mount
   useEffect(() => {
@@ -113,13 +129,40 @@ export default function AdminForetag() {
       return
     }
 
-    // Apply county filter client-side (counties is an array column)
-    const filtered = filter.county
-      ? (data ?? []).filter(c => (c.counties ?? []).includes(filter.county))
-      : (data ?? [])
+    // Apply county filter via company_counties join table
+    let filtered = (data ?? []) as CompanyResult[]
+    if (filter.county) {
+      const countyIdx = (SWEDISH_COUNTIES as readonly string[]).indexOf(filter.county)
+      if (countyIdx >= 0) {
+        const selectedCountyId = countyIdx + 1
+        const allIds = filtered.map(c => c.id)
+        const { data: countyRows } = await supabase
+          .from('company_counties')
+          .select('company_id, county_id')
+          .in('company_id', allIds)
+        const countyMap: Record<string, number[]> = {}
+        ;(countyRows ?? []).forEach((r: any) => {
+          if (!countyMap[r.company_id]) countyMap[r.company_id] = []
+          countyMap[r.company_id].push(r.county_id)
+        })
+        filtered = filtered.filter(c => {
+          const counties = countyMap[c.id]
+          if (!counties || counties.length === 0) return true // rikstäckande
+          return counties.includes(selectedCountyId)
+        })
+      }
+    }
 
-    setResults(filtered as CompanyResult[])
+    setResults(filtered)
     setLoading(false)
+  }
+
+  async function toggleMandatory(id: string, current: boolean) {
+    setTogglingMandatory(true)
+    await supabase.from('companies').update({ is_mandatory_follow: !current }).eq('id', id)
+    setResults(r => r.map(c => c.id === id ? { ...c, is_mandatory_follow: !current } : c))
+    if (selected?.id === id) setSelected(s => s ? { ...s, is_mandatory_follow: !current } : s)
+    setTogglingMandatory(false)
   }
 
   async function toggleActive(id: string, current: boolean) {
@@ -447,16 +490,41 @@ export default function AdminForetag() {
               )}
 
               {/* Län */}
-              {selected.counties && selected.counties.length > 0 && (
-                <div>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Verksamma Län</h3>
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Verksamma Län</h3>
+                {selectedCountyNames.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic">Rikstäckande (inga specifika län)</p>
+                ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {selected.counties.map(c => (
+                    {selectedCountyNames.map(c => (
                       <span key={c} className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600">{c}</span>
                     ))}
                   </div>
+                )}
+              </div>
+
+              {/* Tvingande favorit */}
+              <div>
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Tvingande favorit</h3>
+                <div className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Alla användare måste följa detta företag</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Automatisk favorit som inte kan avföljas av B2C/B2B-användare</p>
+                  </div>
+                  <button
+                    onClick={() => toggleMandatory(selected.id, selected.is_mandatory_follow)}
+                    disabled={togglingMandatory}
+                    className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                      selected.is_mandatory_follow
+                        ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Lock className="h-3.5 w-3.5" />
+                    {selected.is_mandatory_follow ? 'Tvingande på' : 'Tvingande av'}
+                  </button>
                 </div>
-              )}
+              </div>
 
               {/* Fakturering */}
               <div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Star, Search, Building2, Globe } from 'lucide-react'
+import { Star, Search, Building2, Globe, Lock } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
 const ALPHABET = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','Å','Ä','Ö']
@@ -36,6 +36,7 @@ type Company = {
   company_description: string | null
   website: string | null
   categories: string[]
+  is_mandatory_follow?: boolean
 }
 
 export default function B2CFavoriter() {
@@ -94,7 +95,7 @@ export default function B2CFavoriter() {
     const ids = data.map((f: any) => f.company_id)
     const { data: companies } = await supabase
       .from('companies')
-      .select('id, public_name, logo_url, company_description, website')
+      .select('id, public_name, logo_url, company_description, website, is_mandatory_follow')
       .in('id', ids)
       .eq('is_active', true)
       .order('public_name')
@@ -219,6 +220,9 @@ export default function B2CFavoriter() {
   async function toggleFollow(companyId: string) {
     if (!userId) return
     if (followedIds.has(companyId)) {
+      // Kontrollera att företaget inte är tvingande
+      const company = favorites.find(c => c.id === companyId)
+      if (company?.is_mandatory_follow) return
       const { error } = await supabase.from('user_favorites').delete()
         .eq('user_id', userId).eq('company_id', companyId)
       if (error) { console.error('Unfollow error:', error); return }
@@ -230,7 +234,7 @@ export default function B2CFavoriter() {
       if (insertErr) { console.error('Follow error:', insertErr); return }
       const { data } = await supabase
         .from('companies')
-        .select('id, public_name, logo_url, company_description, website')
+        .select('id, public_name, logo_url, company_description, website, is_mandatory_follow')
         .eq('id', companyId).single()
       if (data) setFavorites(f => [...f, { ...data, categories: [] }])
     }
@@ -405,6 +409,8 @@ function CompanyCard({
   onToggle: () => void
   onToggleJobNotify?: () => void
 }) {
+  const isMandatory = company.is_mandatory_follow === true
+
   return (
     <div className="card p-4 flex gap-4">
       {company.logo_url ? (
@@ -418,16 +424,25 @@ function CompanyCard({
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <p className="font-semibold text-gray-900 leading-tight">{company.public_name}</p>
-          <button
-            onClick={onToggle}
-            className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition ${
-              isFollowing
-                ? 'bg-yellow-100 text-yellow-700 hover:bg-red-50 hover:text-red-600'
-                : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
-            }`}
-          >
-            {isFollowing ? '★ Följer' : '+ Följ'}
-          </button>
+          {isMandatory && isFollowing ? (
+            <span
+              title="Du följer alltid detta företag"
+              className="flex-shrink-0 flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold bg-orange-50 text-orange-600 cursor-default"
+            >
+              <Lock className="h-3 w-3" /> Följer alltid
+            </span>
+          ) : (
+            <button
+              onClick={onToggle}
+              className={`flex-shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition ${
+                isFollowing
+                  ? 'bg-yellow-100 text-yellow-700 hover:bg-red-50 hover:text-red-600'
+                  : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+              }`}
+            >
+              {isFollowing ? '★ Följer' : '+ Följ'}
+            </button>
+          )}
         </div>
         {isFollowing && onToggleJobNotify !== undefined && (
           <button
