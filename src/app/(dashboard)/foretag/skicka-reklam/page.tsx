@@ -20,6 +20,16 @@ type TargetingSettings = {
   categories: number[]
 }
 
+function toDateString(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
+function addMonths(date: Date, months: number): Date {
+  const d = new Date(date)
+  d.setMonth(d.getMonth() + months)
+  return d
+}
+
 export default function SkickaReklam() {
   const supabase = createClient()
   const [userId, setUserId] = useState<string | null>(null)
@@ -27,6 +37,12 @@ export default function SkickaReklam() {
   const [adName, setAdName] = useState('')
   const [validFrom, setValidFrom] = useState('')
   const [validTo, setValidTo] = useState('')
+
+  const today = toDateString(new Date())
+  const maxFromDate = toDateString(addMonths(new Date(), 2))
+  const maxToDate = validFrom
+    ? toDateString(addMonths(new Date(validFrom + 'T00:00:00'), 2))
+    : maxFromDate
   const [targeting, setTargeting] = useState<TargetingSettings>({
     type: 'b2c',
     genders: [],
@@ -164,6 +180,29 @@ export default function SkickaReklam() {
     e.preventDefault()
     if (!userId || !file || !adName || !validFrom || !validTo) {
       alert('Fyll i alla obligatoriska fält')
+      return
+    }
+
+    // Datumvalidering – max 2 månader från idag
+    const todayDate = new Date(); todayDate.setHours(0,0,0,0)
+    const fromDate = new Date(validFrom + 'T00:00:00')
+    const toDate   = new Date(validTo   + 'T00:00:00')
+    const maxFrom  = addMonths(todayDate, 2)
+    const maxTo    = addMonths(fromDate,  2)
+    if (fromDate < todayDate) {
+      alert('Startdatum kan inte vara i det förflutna.')
+      return
+    }
+    if (fromDate > maxFrom) {
+      alert('Startdatum får vara max 2 månader framåt.')
+      return
+    }
+    if (toDate < fromDate) {
+      alert('Slutdatum måste vara samma dag eller efter startdatum.')
+      return
+    }
+    if (toDate > maxTo) {
+      alert('Slutdatum får vara max 2 månader efter startdatum.')
       return
     }
 
@@ -385,9 +424,19 @@ export default function SkickaReklam() {
                 type="date"
                 className="input-field"
                 value={validFrom}
-                onChange={e => setValidFrom(e.target.value)}
+                min={today}
+                max={maxFromDate}
+                onChange={e => {
+                  setValidFrom(e.target.value)
+                  // Om validTo ligger efter nytt maxdatum, rensa det
+                  if (validTo) {
+                    const newMax = toDateString(addMonths(new Date(e.target.value + 'T00:00:00'), 2))
+                    if (validTo > newMax) setValidTo('')
+                  }
+                }}
                 required
               />
+              <p className="mt-1 text-xs text-gray-400">Tidigast idag, senast 2 månader framåt</p>
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-600">Gäller till</label>
@@ -395,9 +444,12 @@ export default function SkickaReklam() {
                 type="date"
                 className="input-field"
                 value={validTo}
+                min={validFrom || today}
+                max={maxToDate}
                 onChange={e => setValidTo(e.target.value)}
                 required
               />
+              <p className="mt-1 text-xs text-gray-400">Max 2 månader efter startdatum</p>
             </div>
           </div>
 

@@ -2,10 +2,23 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Download, Archive, TrendingUp, ChevronDown, ChevronRight, Briefcase, History, ChevronUp } from 'lucide-react'
+import { Download, Archive, TrendingUp, ChevronDown, ChevronRight, Briefcase, History, ChevronUp, Home, Users } from 'lucide-react'
 import { formatSEK } from '@/lib/utils'
 
-const JOB_PRICE = 1490
+const JOB_PRICE    = 1490
+const SEEKER_PRICE = 99
+
+const PROP_B2C_FORSALJNING = 1990
+const PROP_B2C_UTHYRNING   =  399
+const PROP_B2B_FORSALJNING = 2990
+const PROP_B2B_UTHYRNING   = 2490
+const B2B_PROPERTY_TYPES   = ['Lagerlokal', 'Butikslokal']
+
+function propPrice(propertyType: string, listingType: string): number {
+  const isB2B = B2B_PROPERTY_TYPES.includes(propertyType)
+  if (listingType === 'uthyrning') return isB2B ? PROP_B2B_UTHYRNING : PROP_B2C_UTHYRNING
+  return isB2B ? PROP_B2B_FORSALJNING : PROP_B2C_FORSALJNING
+}
 
 type BillingRow = {
   company_id: string
@@ -55,6 +68,24 @@ type JobBillingRow = {
   companies: { public_name: string }[] | null
 }
 
+type PropertyBillingRow = {
+  id: number
+  title: string
+  property_type: string
+  listing_type: string
+  created_at: string
+  company_id: string
+  companies: { public_name: string }[] | null
+}
+
+type SeekerPurchaseBillingRow = {
+  id: number
+  seeker_id: number
+  created_at: string
+  company_id: string
+  property_seekers: { property_type: string; listing_type: string; county: string } | null
+}
+
 type ArchiveEntry = {
   id: number
   period_label: string
@@ -65,11 +96,13 @@ type ArchiveEntry = {
 
 export default function AdminFakturering() {
   const supabase = createClient()
-  const [data, setData]               = useState<BillingRow[]>([])
-  const [adData, setAdData]           = useState<AdRow[]>([])
-  const [jobBilling, setJobBilling]   = useState<JobBillingRow[]>([])
-  const [archiveData, setArchiveData] = useState<ArchiveEntry[]>([])
-  const [loading, setLoading]         = useState(true)
+  const [data, setData]                         = useState<BillingRow[]>([])
+  const [adData, setAdData]                     = useState<AdRow[]>([])
+  const [jobBilling, setJobBilling]             = useState<JobBillingRow[]>([])
+  const [propertyBilling, setPropertyBilling]   = useState<PropertyBillingRow[]>([])
+  const [seekerBilling, setSeekerBilling]       = useState<SeekerPurchaseBillingRow[]>([])
+  const [archiveData, setArchiveData]           = useState<ArchiveEntry[]>([])
+  const [loading, setLoading]                   = useState(true)
   const [showArchiveModal, setShowArchiveModal]     = useState(false)
   const [archiveLabel, setArchiveLabel]             = useState('')
   const [expandedCompanies, setExpandedCompanies]   = useState<Set<string>>(new Set())
@@ -86,39 +119,85 @@ export default function AdminFakturering() {
         .eq('is_billed', false)
         .order('created_at', { ascending: false }),
       supabase
+        .from('properties')
+        .select('id, title, property_type, listing_type, created_at, company_id, companies(public_name)')
+        .eq('is_billed', false)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('property_seeker_purchases')
+        .select('id, seeker_id, created_at, company_id, property_seekers(property_type, listing_type, county)')
+        .eq('is_billed', false)
+        .order('created_at', { ascending: false }),
+      supabase
         .from('billing_archive')
         .select('*')
         .order('created_at', { ascending: false }),
-    ]).then(([{ data: summary }, { data: ads }, { data: jobs }, { data: archive }]) => {
+    ]).then(([{ data: summary }, { data: ads }, { data: jobs }, { data: props }, { data: seekers }, { data: archive }]) => {
       if (summary) setData(summary as BillingRow[])
       if (ads)     setAdData(ads as AdRow[])
       if (jobs)    setJobBilling(jobs as JobBillingRow[])
+      if (props)   setPropertyBilling(props as unknown as PropertyBillingRow[])
+      if (seekers) setSeekerBilling(seekers as unknown as SeekerPurchaseBillingRow[])
       if (archive) setArchiveData(archive as ArchiveEntry[])
       setLoading(false)
     })
   }, [])
 
-  const adsTotal   = data.reduce((acc, r) => acc + Number(r.total_amount), 0)
-  const jobsTotal  = jobBilling.length * JOB_PRICE
-  const grandTotal = adsTotal + jobsTotal
+  const adsTotal        = data.reduce((acc, r) => acc + Number(r.total_amount), 0)
+  const jobsTotal       = jobBilling.length * JOB_PRICE
+  const propertiesTotal = propertyBilling.reduce((acc, p) => acc + propPrice(p.property_type, p.listing_type), 0)
+  const seekerTotal     = seekerBilling.length * SEEKER_PRICE
+  const grandTotal      = adsTotal + jobsTotal + propertiesTotal + seekerTotal
 
-  // Group job listings by company for the expanded view
+  // Group by company for the expanded view
   const jobsByCompany = jobBilling.reduce<Record<string, JobBillingRow[]>>((acc, j) => {
     if (!acc[j.company_id]) acc[j.company_id] = []
     acc[j.company_id].push(j)
     return acc
   }, {})
 
-  // Companies with ONLY jobs (not in billing_summary) – need their own rows
+  const propertiesByCompany = propertyBilling.reduce<Record<string, PropertyBillingRow[]>>((acc, p) => {
+    if (!acc[p.company_id]) acc[p.company_id] = []
+    acc[p.company_id].push(p)
+    return acc
+  }, {})
+
+  const seekersByCompany = seekerBilling.reduce<Record<string, SeekerPurchaseBillingRow[]>>((acc, s) => {
+    if (!acc[s.company_id]) acc[s.company_id] = []
+    acc[s.company_id].push(s)
+    return acc
+  }, {})
+
+  // Companies with ONLY non-ad billing (jobs/properties/seekers, not in billing_summary)
   const billedCompanyIds = new Set(data.map(r => r.company_id))
-  const jobOnlyEntries = Object.entries(jobsByCompany)
-    .filter(([cid]) => !billedCompanyIds.has(cid))
-    .map(([cid, jobs]) => ({
-      company_id:  cid,
-      public_name: jobs[0]?.companies?.[0]?.public_name ?? 'Okänt företag',
-      jobs,
-      jobsAmount:  jobs.length * JOB_PRICE,
-    }))
+  const nonAdCompanyIds = new Set([
+    ...Object.keys(jobsByCompany),
+    ...Object.keys(propertiesByCompany),
+    ...Object.keys(seekersByCompany),
+  ])
+  const nonAdOnlyIds = [...nonAdCompanyIds].filter(cid => !billedCompanyIds.has(cid))
+
+  // Resolve company name for non-ad-only companies
+  function resolveCompanyName(cid: string): string {
+    const job  = jobsByCompany[cid]?.[0]
+    const prop = propertiesByCompany[cid]?.[0]
+    const seek = seekersByCompany[cid]?.[0]
+    return (
+      (job?.companies as any)?.[0]?.public_name ??
+      (prop?.companies as any)?.[0]?.public_name ??
+      'Okänt företag'
+    )
+  }
+
+  const nonAdOnlyEntries = nonAdOnlyIds.map(cid => {
+    const jobs       = jobsByCompany[cid] ?? []
+    const props      = propertiesByCompany[cid] ?? []
+    const seekers    = seekersByCompany[cid] ?? []
+    const totalAmt   = jobs.length * JOB_PRICE
+                     + props.reduce((s, p) => s + propPrice(p.property_type, p.listing_type), 0)
+                     + seekers.length * SEEKER_PRICE
+    return { company_id: cid, public_name: resolveCompanyName(cid), jobs, props, seekers, totalAmt }
+  })
 
   function toggleExpand(companyId: string) {
     setExpandedCompanies(prev => {
@@ -186,25 +265,57 @@ export default function AdminFakturering() {
           JOB_PRICE,
         ])
       })
+      ;(propertiesByCompany[r.company_id] ?? []).forEach(p => {
+        rows.push([
+          'Fastighetsannons', r.public_name,
+          `${p.title} · ${p.property_type} · ${p.listing_type === 'forsaljning' ? 'Försäljning' : 'Uthyrning'}`,
+          '', '', '', '', '', '', '', '', '', '', '', '', propPrice(p.property_type, p.listing_type),
+        ])
+      })
+      ;(seekersByCompany[r.company_id] ?? []).forEach(s => {
+        const sk = s.property_seekers
+        rows.push([
+          'Sökes-kontakt', r.public_name,
+          sk ? `${sk.property_type} · ${sk.listing_type === 'forsaljning' ? 'Köpes' : 'Söker hyra'}${sk.county ? ` · ${sk.county}` : ''}` : `Sökes #${s.seeker_id}`,
+          '', '', '', '', '', '', '', '', '', '', '', '', SEEKER_PRICE,
+        ])
+      })
     })
 
-    // Job-only companies
-    if (jobOnlyEntries.length > 0) {
+    // Non-ad-only companies (jobs / properties / seekers, no ad reads)
+    if (nonAdOnlyEntries.length > 0) {
       rows.push(['', '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''])
-      jobOnlyEntries.forEach(e => {
-        rows.push(['Företag (jobb)', e.public_name, '', '', '', '', '', '', '', '', '', '', '', '', '', e.jobsAmount])
+      nonAdOnlyEntries.forEach(e => {
+        rows.push(['Företag (ej reklam)', e.public_name, '', '', '', '', '', '', '', '', '', '', '', '', '', e.totalAmt])
         e.jobs.forEach(j => {
+          rows.push(['Jobbannons', e.public_name, j.title, '', '', '', '', '', '', '', '', '', '', '', '', JOB_PRICE])
+        })
+        e.props.forEach(p => {
           rows.push([
-            'Jobbannons', e.public_name, j.title,
-            '', '', '', '', '', '', '', '', '', '', '', '',
-            JOB_PRICE,
+            'Fastighetsannons', e.public_name,
+            `${p.title} · ${p.property_type} · ${p.listing_type === 'forsaljning' ? 'Försäljning' : 'Uthyrning'}`,
+            '', '', '', '', '', '', '', '', '', '', '', '', propPrice(p.property_type, p.listing_type),
+          ])
+        })
+        e.seekers.forEach(s => {
+          const sk = s.property_seekers
+          rows.push([
+            'Sökes-kontakt', e.public_name,
+            sk ? `${sk.property_type} · ${sk.listing_type === 'forsaljning' ? 'Köpes' : 'Söker hyra'}${sk.county ? ` · ${sk.county}` : ''}` : `Sökes #${s.seeker_id}`,
+            '', '', '', '', '', '', '', '', '', '', '', '', SEEKER_PRICE,
           ])
         })
       })
     }
 
-    if (jobBilling.length > 0) {
+    if (jobsTotal > 0) {
       rows.push(['Summa jobbannonser', '', '', '', '', '', '', '', '', '', '', '', '', '', '', jobsTotal])
+    }
+    if (propertiesTotal > 0) {
+      rows.push(['Summa fastighetsannonser', '', '', '', '', '', '', '', '', '', '', '', '', '', '', propertiesTotal])
+    }
+    if (seekerTotal > 0) {
+      rows.push(['Summa sökes-kontakter', '', '', '', '', '', '', '', '', '', '', '', '', '', '', seekerTotal])
     }
 
     const csv = [headers, ...rows]
@@ -244,10 +355,24 @@ export default function AdminFakturering() {
       await supabase.from('jobs').update({ is_billed: true }).in('id', jobIds)
     }
 
+    // Mark properties as billed
+    const propIds = propertyBilling.map(p => p.id)
+    if (propIds.length > 0) {
+      await supabase.from('properties').update({ is_billed: true }).in('id', propIds)
+    }
+
+    // Mark seeker purchases as billed
+    const seekerIds = seekerBilling.map(s => s.id)
+    if (seekerIds.length > 0) {
+      await supabase.from('property_seeker_purchases').update({ is_billed: true }).in('id', seekerIds)
+    }
+
     setShowArchiveModal(false)
     setData([])
     setAdData([])
     setJobBilling([])
+    setPropertyBilling([])
+    setSeekerBilling([])
     alert('Faktureringsunderlaget har arkiverats.')
   }
 
@@ -260,7 +385,7 @@ export default function AdminFakturering() {
   }
 
   // Determine if there's anything in the current period
-  const hasCurrentPeriod = data.length > 0 || jobBilling.length > 0
+  const hasCurrentPeriod = data.length > 0 || jobBilling.length > 0 || propertyBilling.length > 0 || seekerBilling.length > 0
 
   return (
     <div>
@@ -305,7 +430,7 @@ export default function AdminFakturering() {
         </div>
         <div className="card p-5">
           <p className="text-xs text-gray-500">Antal företag</p>
-          <p className="text-xl font-bold text-gray-900">{data.length + jobOnlyEntries.length}</p>
+          <p className="text-xl font-bold text-gray-900">{data.length + nonAdOnlyEntries.length}</p>
         </div>
         <div className="card p-5">
           <div className="flex items-center gap-3">
@@ -317,8 +442,13 @@ export default function AdminFakturering() {
           </div>
         </div>
         <div className="card p-5">
-          <p className="text-xs text-gray-500">Jobbannonser totalt</p>
-          <p className="text-xl font-bold text-gray-900">{formatSEK(jobsTotal)}</p>
+          <div className="flex items-center gap-3">
+            <Home className="h-5 w-5 text-amber-500" />
+            <div>
+              <p className="text-xs text-gray-500">Fastigheter + Sökes</p>
+              <p className="text-xl font-bold text-gray-900">{propertyBilling.length + seekerBilling.length} st</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -354,10 +484,14 @@ export default function AdminFakturering() {
                   <tbody className="divide-y divide-gray-100">
                     {/* Companies with ad billing (may also have jobs) */}
                     {data.map(r => {
-                      const ads        = adsForCompany(r.company_id)
-                      const compJobs   = jobsByCompany[r.company_id] ?? []
-                      const isExpanded = expandedCompanies.has(r.company_id)
-                      const companyJobsAmount = compJobs.length * JOB_PRICE
+                      const ads         = adsForCompany(r.company_id)
+                      const compJobs    = jobsByCompany[r.company_id] ?? []
+                      const compProps   = propertiesByCompany[r.company_id] ?? []
+                      const compSeekers = seekersByCompany[r.company_id] ?? []
+                      const isExpanded  = expandedCompanies.has(r.company_id)
+                      const compJobsAmt    = compJobs.length * JOB_PRICE
+                      const compPropsAmt   = compProps.reduce((s, p) => s + propPrice(p.property_type, p.listing_type), 0)
+                      const compSeekersAmt = compSeekers.length * SEEKER_PRICE
                       return (
                         <>
                           {/* Företagsrad */}
@@ -375,12 +509,18 @@ export default function AdminFakturering() {
                               {compJobs.length > 0 && (
                                 <span className="ml-1 text-xs font-normal text-primary-500">· {compJobs.length} jobb</span>
                               )}
+                              {compProps.length > 0 && (
+                                <span className="ml-1 text-xs font-normal text-amber-600">· {compProps.length} fastigheter</span>
+                              )}
+                              {compSeekers.length > 0 && (
+                                <span className="ml-1 text-xs font-normal text-teal-600">· {compSeekers.length} sökes</span>
+                              )}
                             </td>
                             {[r.favorit_b2c_reads, r.favorit_b2c_amount, r.intresse_b2c_reads, r.intresse_b2c_amount, r.generell_b2c_reads, r.generell_b2c_amount, r.favorit_b2b_reads, r.favorit_b2b_amount, r.intresse_b2b_reads, r.intresse_b2b_amount, r.generell_b2b_reads, r.generell_b2b_amount].map((v, i) => (
                               <td key={i} className="px-2 py-3 text-center text-gray-600">{v}</td>
                             ))}
                             <td className="px-4 py-3 text-right font-bold text-gray-900">
-                              {formatSEK(Number(r.total_amount) + companyJobsAmount)}
+                              {formatSEK(Number(r.total_amount) + compJobsAmt + compPropsAmt + compSeekersAmt)}
                             </td>
                           </tr>
 
@@ -414,17 +554,55 @@ export default function AdminFakturering() {
                               <td className="px-4 py-2 text-right text-xs font-medium text-primary-700">{formatSEK(JOB_PRICE)}</td>
                             </tr>
                           ))}
+
+                          {/* Per-fastighets-rader */}
+                          {isExpanded && compProps.map(p => (
+                            <tr key={`prop-${p.id}`} className="bg-amber-50/30">
+                              <td className="px-2 py-2" />
+                              <td className="px-4 py-2 text-xs text-amber-700 pl-8 flex items-center gap-1">
+                                <span className="text-gray-300 mr-1">↳</span>
+                                <Home className="h-3 w-3 shrink-0" />
+                                {p.title}
+                                <span className="text-gray-400 ml-1">· {p.property_type} · {p.listing_type === 'forsaljning' ? 'Försäljning' : 'Uthyrning'}</span>
+                                <span className="text-gray-400 ml-1">({new Date(p.created_at).toLocaleDateString('sv-SE')})</span>
+                              </td>
+                              {Array(12).fill('').map((_, i) => (
+                                <td key={i} className="px-2 py-2 text-center text-xs text-gray-300">–</td>
+                              ))}
+                              <td className="px-4 py-2 text-right text-xs font-medium text-amber-700">{formatSEK(propPrice(p.property_type, p.listing_type))}</td>
+                            </tr>
+                          ))}
+
+                          {/* Per-sökes-rader */}
+                          {isExpanded && compSeekers.map(s => {
+                            const sk = s.property_seekers
+                            return (
+                              <tr key={`seeker-${s.id}`} className="bg-teal-50/30">
+                                <td className="px-2 py-2" />
+                                <td className="px-4 py-2 text-xs text-teal-700 pl-8 flex items-center gap-1">
+                                  <span className="text-gray-300 mr-1">↳</span>
+                                  <Users className="h-3 w-3 shrink-0" />
+                                  {sk ? `${sk.property_type} · ${sk.listing_type === 'forsaljning' ? 'Köpes' : 'Söker hyra'}${sk.county ? ` · ${sk.county}` : ''}` : `Sökes #${s.seeker_id}`}
+                                  <span className="text-gray-400 ml-1">({new Date(s.created_at).toLocaleDateString('sv-SE')})</span>
+                                </td>
+                                {Array(12).fill('').map((_, i) => (
+                                  <td key={i} className="px-2 py-2 text-center text-xs text-gray-300">–</td>
+                                ))}
+                                <td className="px-4 py-2 text-right text-xs font-medium text-teal-700">{formatSEK(SEEKER_PRICE)}</td>
+                              </tr>
+                            )
+                          })}
                         </>
                       )
                     })}
 
-                    {/* Job-only companies (no ad billing this period) */}
-                    {jobOnlyEntries.map(e => {
+                    {/* Companies with only non-ad billing (jobs/properties/seekers, no ad reads) */}
+                    {nonAdOnlyEntries.map(e => {
                       const isExpanded = expandedCompanies.has(e.company_id)
                       return (
                         <>
                           <tr
-                            key={`job-only-${e.company_id}`}
+                            key={`nonad-${e.company_id}`}
                             className="cursor-pointer hover:bg-primary-50/40 transition"
                             onClick={() => toggleExpand(e.company_id)}
                           >
@@ -434,17 +612,25 @@ export default function AdminFakturering() {
                             <td className="px-4 py-3 font-semibold text-gray-900">
                               {e.public_name}
                               <span className="ml-2 text-xs font-normal text-gray-400">0 reklamblad</span>
-                              <span className="ml-1 text-xs font-normal text-primary-500">· {e.jobs.length} jobb</span>
+                              {e.jobs.length > 0 && (
+                                <span className="ml-1 text-xs font-normal text-primary-500">· {e.jobs.length} jobb</span>
+                              )}
+                              {e.props.length > 0 && (
+                                <span className="ml-1 text-xs font-normal text-amber-600">· {e.props.length} fastigheter</span>
+                              )}
+                              {e.seekers.length > 0 && (
+                                <span className="ml-1 text-xs font-normal text-teal-600">· {e.seekers.length} sökes</span>
+                              )}
                             </td>
                             {Array(12).fill(0).map((_, i) => (
                               <td key={i} className="px-2 py-3 text-center text-gray-300">–</td>
                             ))}
                             <td className="px-4 py-3 text-right font-bold text-gray-900">
-                              {formatSEK(e.jobsAmount)}
+                              {formatSEK(e.totalAmt)}
                             </td>
                           </tr>
                           {isExpanded && e.jobs.map(j => (
-                            <tr key={`job-only-job-${j.id}`} className="bg-primary-50/30">
+                            <tr key={`nonad-job-${j.id}`} className="bg-primary-50/30">
                               <td className="px-2 py-2" />
                               <td className="px-4 py-2 text-xs text-primary-700 pl-8 flex items-center gap-1">
                                 <span className="text-gray-300 mr-1">↳</span>
@@ -458,19 +644,67 @@ export default function AdminFakturering() {
                               <td className="px-4 py-2 text-right text-xs font-medium text-primary-700">{formatSEK(JOB_PRICE)}</td>
                             </tr>
                           ))}
+                          {isExpanded && e.props.map(p => (
+                            <tr key={`nonad-prop-${p.id}`} className="bg-amber-50/30">
+                              <td className="px-2 py-2" />
+                              <td className="px-4 py-2 text-xs text-amber-700 pl-8 flex items-center gap-1">
+                                <span className="text-gray-300 mr-1">↳</span>
+                                <Home className="h-3 w-3 shrink-0" />
+                                {p.title}
+                                <span className="text-gray-400 ml-1">· {p.property_type} · {p.listing_type === 'forsaljning' ? 'Försäljning' : 'Uthyrning'}</span>
+                                <span className="text-gray-400 ml-1">({new Date(p.created_at).toLocaleDateString('sv-SE')})</span>
+                              </td>
+                              {Array(12).fill('').map((_, i) => (
+                                <td key={i} className="px-2 py-2 text-center text-xs text-gray-300">–</td>
+                              ))}
+                              <td className="px-4 py-2 text-right text-xs font-medium text-amber-700">{formatSEK(propPrice(p.property_type, p.listing_type))}</td>
+                            </tr>
+                          ))}
+                          {isExpanded && e.seekers.map(s => {
+                            const sk = s.property_seekers
+                            return (
+                              <tr key={`nonad-seeker-${s.id}`} className="bg-teal-50/30">
+                                <td className="px-2 py-2" />
+                                <td className="px-4 py-2 text-xs text-teal-700 pl-8 flex items-center gap-1">
+                                  <span className="text-gray-300 mr-1">↳</span>
+                                  <Users className="h-3 w-3 shrink-0" />
+                                  {sk ? `${sk.property_type} · ${sk.listing_type === 'forsaljning' ? 'Köpes' : 'Söker hyra'}${sk.county ? ` · ${sk.county}` : ''}` : `Sökes #${s.seeker_id}`}
+                                  <span className="text-gray-400 ml-1">({new Date(s.created_at).toLocaleDateString('sv-SE')})</span>
+                                </td>
+                                {Array(12).fill('').map((_, i) => (
+                                  <td key={i} className="px-2 py-2 text-center text-xs text-gray-300">–</td>
+                                ))}
+                                <td className="px-4 py-2 text-right text-xs font-medium text-teal-700">{formatSEK(SEEKER_PRICE)}</td>
+                              </tr>
+                            )
+                          })}
                         </>
                       )
                     })}
                   </tbody>
                   <tfoot className="bg-gray-50">
-                    <tr>
-                      <td colSpan={14} className="px-4 py-3 text-right font-bold text-gray-700">Summa reklamblad:</td>
-                      <td className="px-4 py-3 text-right font-bold text-primary-700">{formatSEK(adsTotal)}</td>
-                    </tr>
+                    {adsTotal > 0 && (
+                      <tr>
+                        <td colSpan={14} className="px-4 py-3 text-right font-bold text-gray-700">Summa reklamblad:</td>
+                        <td className="px-4 py-3 text-right font-bold text-primary-700">{formatSEK(adsTotal)}</td>
+                      </tr>
+                    )}
                     {jobsTotal > 0 && (
                       <tr>
                         <td colSpan={14} className="px-4 py-3 text-right font-bold text-gray-700">Summa jobbannonser:</td>
                         <td className="px-4 py-3 text-right font-bold text-primary-700">{formatSEK(jobsTotal)}</td>
+                      </tr>
+                    )}
+                    {propertiesTotal > 0 && (
+                      <tr>
+                        <td colSpan={14} className="px-4 py-3 text-right font-bold text-gray-700">Summa fastighetsannonser:</td>
+                        <td className="px-4 py-3 text-right font-bold text-amber-700">{formatSEK(propertiesTotal)}</td>
+                      </tr>
+                    )}
+                    {seekerTotal > 0 && (
+                      <tr>
+                        <td colSpan={14} className="px-4 py-3 text-right font-bold text-gray-700">Summa sökes-kontakter:</td>
+                        <td className="px-4 py-3 text-right font-bold text-teal-700">{formatSEK(seekerTotal)}</td>
                       </tr>
                     )}
                     <tr className="border-t-2 border-gray-200">
@@ -598,8 +832,8 @@ export default function AdminFakturering() {
             <Archive className="mb-4 h-10 w-10 text-primary-600" />
             <h2 className="mb-2 text-xl font-bold">Arkivera faktureringsunderlag?</h2>
             <p className="mb-4 text-sm text-gray-500">
-              Vill du arkivera den exporterade listan? Datan sparas med datum och de markerade
-              läsningarna registreras som fakturerade. Jobbannonser ({jobBilling.length} st) markeras också som fakturerade.
+              Vill du arkivera den exporterade listan? Datan sparas med datum och de markerade läsningarna registreras som fakturerade.
+              Jobbannonser ({jobBilling.length} st), fastighetsannonser ({propertyBilling.length} st) och sökes-kontaktköp ({seekerBilling.length} st) markeras också som fakturerade.
             </p>
             <div className="mb-4">
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Periodnamn</label>

@@ -102,7 +102,7 @@ export default function ForetagFastighetsportal() {
       if (!user) return
       setCompanyId(user.id)
       const [{ data: propData }, { data: seekerData }, { data: purchaseData }] = await Promise.all([
-        supabase.from('properties').select('*').eq('company_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('properties').select('*').eq('company_id', user.id).is('deleted_at', null).order('created_at', { ascending: false }),
         supabase.from('property_seekers').select('*').eq('is_active', true).order('created_at', { ascending: false }),
         supabase.from('property_seeker_purchases').select('seeker_id').eq('company_id', user.id),
       ])
@@ -269,7 +269,7 @@ export default function ForetagFastighetsportal() {
   async function handleDelete(id: number) {
     if (!confirm('Är du säker på att du vill ta bort denna annons?')) return
     setDeletingId(id)
-    await supabase.from('properties').delete().eq('id', id)
+    await supabase.from('properties').update({ deleted_at: new Date().toISOString() }).eq('id', id)
     setProperties(prev => prev.filter(p => p.id !== id))
     setDeletingId(null)
   }

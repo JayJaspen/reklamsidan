@@ -212,19 +212,20 @@ export default function AdminForetag() {
               {(['b2b', 'b2c'] as const).map(type => {
                 const parents = categories.filter(c => c.type === type && c.parent_id === null)
                 if (parents.length === 0) return null
-                return (
-                  <optgroup key={type} label={type === 'b2b' ? '── B2B-kategorier ──' : '── B2C-kategorier ──'}>
-                    {parents.map(parent => {
-                      const subs = categories.filter(c => c.type === type && c.parent_id === parent.id)
-                      if (subs.length > 0) {
-                        return subs.map(sub => (
-                          <option key={`${type}:${sub.id}`} value={`${type}:${sub.id}`}>{parent.name} › {sub.name}</option>
-                        ))
+                const typeLabel = type === 'b2b' ? 'B2B' : 'B2C'
+                return parents.map(parent => {
+                  const subs = categories.filter(c => c.type === type && c.parent_id === parent.id)
+                  return (
+                    <optgroup key={`${type}:${parent.id}`} label={`${typeLabel} – ${parent.name}`}>
+                      {subs.length > 0
+                        ? subs.map(sub => (
+                            <option key={`${type}:${sub.id}`} value={`${type}:${sub.id}`}>{sub.name}</option>
+                          ))
+                        : <option value={`${type}:${parent.id}`}>{parent.name}</option>
                       }
-                      return <option key={`${type}:${parent.id}`} value={`${type}:${parent.id}`}>{parent.name}</option>
-                    })}
-                  </optgroup>
-                )
+                    </optgroup>
+                  )
+                })
               })}
             </select>
           </div>

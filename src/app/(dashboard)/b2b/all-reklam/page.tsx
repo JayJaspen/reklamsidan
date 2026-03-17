@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import AdCard from '@/components/AdCard'
-import { Search, Heart, Globe } from 'lucide-react'
+import { Search, Heart, Globe, Lock } from 'lucide-react'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
 const ALPHABET = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','Å','Ä','Ö']
@@ -21,6 +21,7 @@ export default function B2BAllReklam() {
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
   const [ads, setAds]            = useState<unknown[]>([])
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [mandatoryIds, setMandatoryIds] = useState<Set<string>>(new Set())
   const [searched, setSearched]  = useState(false)
   const [loading, setLoading]    = useState(false)
   const [activeLetter, setActiveLetter] = useState('')
@@ -32,6 +33,10 @@ export default function B2BAllReklam() {
         supabase.from('user_favorites').select('company_id').eq('user_id', user.id)
           .then(({ data }) => {
             if (data) setFavorites(new Set(data.map(f => f.company_id)))
+          })
+        supabase.from('companies').select('id').eq('is_mandatory_follow', true)
+          .then(({ data }) => {
+            if (data) setMandatoryIds(new Set(data.map(c => c.id)))
           })
       }
     })
@@ -145,6 +150,7 @@ export default function B2BAllReklam() {
   async function toggleFavorite(companyId: string) {
     if (!userId) return
     if (favorites.has(companyId)) {
+      if (mandatoryIds.has(companyId)) return // Tvingande favorit – kan ej avföljas
       await supabase.from('user_favorites').delete()
         .eq('user_id', userId).eq('company_id', companyId)
       setFavorites(f => { const n = new Set(f); n.delete(companyId); return n })
@@ -254,13 +260,19 @@ export default function B2BAllReklam() {
                     <p className="text-sm font-semibold text-gray-900 truncate">{c.public_name}</p>
                     <p className="text-xs text-gray-400">{c.ad_count} aktiva erbjudanden</p>
                   </div>
-                  <button
-                    onClick={e => { e.stopPropagation(); toggleFavorite(c.id) }}
-                    title={favorites.has(c.id) ? 'Ta bort favorit' : 'Lägg till favorit'}
-                    className={`rounded-full p-1.5 transition ${favorites.has(c.id) ? 'text-red-500 bg-red-50' : 'text-gray-300 hover:text-red-400'}`}
-                  >
-                    <Heart className={`h-4 w-4 ${favorites.has(c.id) ? 'fill-current' : ''}`} />
-                  </button>
+                  {mandatoryIds.has(c.id) ? (
+                    <span title="Du följer alltid detta företag" className="rounded-full p-1.5 text-orange-400 cursor-default">
+                      <Lock className="h-4 w-4" />
+                    </span>
+                  ) : (
+                    <button
+                      onClick={e => { e.stopPropagation(); toggleFavorite(c.id) }}
+                      title={favorites.has(c.id) ? 'Ta bort favorit' : 'Lägg till favorit'}
+                      className={`rounded-full p-1.5 transition ${favorites.has(c.id) ? 'text-red-500 bg-red-50' : 'text-gray-300 hover:text-red-400'}`}
+                    >
+                      <Heart className={`h-4 w-4 ${favorites.has(c.id) ? 'fill-current' : ''}`} />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

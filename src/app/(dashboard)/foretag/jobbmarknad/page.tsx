@@ -68,6 +68,7 @@ export default function ForetagJobbmarknad() {
           .from('jobs')
           .select('*')
           .eq('company_id', user.id)
+          .is('deleted_at', null)
           .order('created_at', { ascending: false }),
         supabase.from('companies').select('logo_url').eq('id', user.id).single(),
       ])
@@ -169,7 +170,7 @@ export default function ForetagJobbmarknad() {
   async function handleDelete(id: number) {
     if (!confirm('Är du säker på att du vill ta bort detta jobb?')) return
     setDeletingId(id)
-    await supabase.from('jobs').delete().eq('id', id)
+    await supabase.from('jobs').update({ deleted_at: new Date().toISOString() }).eq('id', id)
     setJobs(prev => prev.filter(j => j.id !== id))
     setDeletingId(null)
   }
