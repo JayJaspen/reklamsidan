@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
+import { ChevronLeft, ChevronRight, BookOpen, ExternalLink } from 'lucide-react'
 
 interface Props {
   url: string
@@ -28,6 +28,14 @@ export default function PdfViewer({ url, zoom = 1 }: Props) {
         setLoading(true)
         setError(null)
 
+        // Kontrollera att proxy-routen svarar korrekt innan PDF.js laddas
+        const proxyUrl = `/api/pdf?url=${encodeURIComponent(url)}`
+        const probeRes = await fetch(proxyUrl, { method: 'HEAD' })
+        if (!probeRes.ok) {
+          const text = await fetch(proxyUrl).then(r => r.text()).catch(() => '')
+          throw new Error(`Proxy svarade med HTTP ${probeRes.status}${text ? ': ' + text : ''}`)
+        }
+
         // Dynamically import pdfjs-dist to keep initial bundle small
         const pdfjsLib = await import('pdfjs-dist')
         pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
@@ -35,7 +43,6 @@ export default function PdfViewer({ url, zoom = 1 }: Props) {
         // Proxya URL:en via /api/pdf för att undvika CORS-problem med Supabase storage.
         // PDF.js gör en fetch()-request från webbläsaren vilket kräver CORS-headers,
         // medan <img>/<video> inte har samma begränsning.
-        const proxyUrl = `/api/pdf?url=${encodeURIComponent(url)}`
         const pdf = await pdfjsLib.getDocument({ url: proxyUrl, withCredentials: false }).promise
         if (cancelled) return
 
@@ -43,7 +50,10 @@ export default function PdfViewer({ url, zoom = 1 }: Props) {
         setNumPages(pdf.numPages)
         setCurrentPage(1)
       } catch (err) {
-        if (!cancelled) setError('Kunde inte ladda PDF:en.')
+        if (!cancelled) {
+          const msg = err instanceof Error ? err.message : String(err)
+          setError(msg)
+        }
         console.error('PdfViewer load error:', err)
       } finally {
         if (!cancelled) setLoading(false)
@@ -103,8 +113,18 @@ export default function PdfViewer({ url, zoom = 1 }: Props) {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-red-500">
-        {error}
+      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-red-100 bg-red-50 p-6 text-center">
+        <p className="text-sm font-medium text-red-600">Kunde inte ladda PDF:en</p>
+        <p className="text-xs text-red-400 font-mono break-all max-w-sm">{error}</p>
+        <a
+          href={`/api/pdf?url=${encodeURIComponent(url)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-gray-200 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Öppna PDF i nytt fönster
+        </a>
       </div>
     )
   }

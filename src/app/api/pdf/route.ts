@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServiceRoleClient } from '@/lib/supabase/serviceRole'
 
 /**
  * Proxy-route för PDF-filer från Supabase storage.
@@ -31,9 +31,8 @@ export async function GET(request: NextRequest) {
 
   // Säkerhetscheck: tillåt bara URL:er från det konfigurerade Supabase-projektet
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!supabaseUrl || !serviceRoleKey) {
-    console.error('PDF proxy: miljövariabler saknas')
+  if (!supabaseUrl || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('PDF proxy: NEXT_PUBLIC_SUPABASE_URL eller SUPABASE_SERVICE_ROLE_KEY saknas i miljövariabler')
     return new NextResponse('Serverkonfiguration saknas', { status: 500 })
   }
 
@@ -48,19 +47,20 @@ export async function GET(request: NextRequest) {
     /^\/storage\/v1\/object\/public\/([^/]+)\/(.+)$/
   )
   if (!pathMatch) {
+    console.error('PDF proxy: URL matchar inte /storage/v1/object/public/<bucket>/<path>:', parsedUrl.pathname)
     return new NextResponse('Ogiltig lagringsväg', { status: 400 })
   }
   const [, bucket, filePath] = pathMatch
 
   try {
     // Använd service role för att ladda ner filen – fungerar oavsett om
-    // bucketen är publik eller privat
-    const supabase = createClient(supabaseUrl, serviceRoleKey)
+    // bucketen är publik eller privat, och kringgår RLS
+    const supabase = createServiceRoleClient()
     const { data, error } = await supabase.storage.from(bucket).download(filePath)
 
     if (error || !data) {
-      console.error('PDF proxy – nedladdning misslyckades:', error?.message)
-      return new NextResponse('PDF:en hittades inte', { status: 404 })
+      console.error(`PDF proxy – nedladdning misslyckades (bucket=${bucket}, path=${filePath}):`, error?.message)
+      return new NextResponse(`PDF:en hittades inte: ${error?.message ?? 'okänt fel'}`, { status: 404 })
     }
 
     const headers = new Headers()
