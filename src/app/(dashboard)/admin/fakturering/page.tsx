@@ -119,6 +119,7 @@ export default function AdminFakturering() {
         .from('jobs')
         .select('id, title, created_at, company_id, companies(public_name)')
         .eq('is_billed', false)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false }),
       supabase
         .from('properties')
