@@ -84,6 +84,7 @@ export default function ForetagFastighetsportal() {
   const [togglingId,        setTogglingId]        = useState<number | null>(null)
   const [form,              setForm]              = useState(EMPTY_FORM)
   const [error,             setError]             = useState<string | null>(null)
+  const [customCity,        setCustomCity]        = useState(false)
 
   // Sökes-annonser (users looking for properties)
   const [seekers,           setSeekers]           = useState<any[]>([])
@@ -120,10 +121,13 @@ export default function ForetagFastighetsportal() {
     setNewImageFiles([])
     setNewPreviews([])
     setError(null)
+    setCustomCity(false)
     setShowForm(true)
   }
 
   function openEdit(p: Property) {
+    const countyList = p.county ? (CITIES_BY_COUNTY[p.county] ?? []) : []
+    setCustomCity(!!p.city && !countyList.includes(p.city))
     setForm({
       propertyType: p.property_type,
       listingType:  p.listing_type,
@@ -413,16 +417,40 @@ export default function ForetagFastighetsportal() {
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-600">Stad *</label>
-                {form.county && CITIES_BY_COUNTY[form.county] ? (
+                {customCity ? (
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      className="input-field"
+                      placeholder="Ange stad..."
+                      value={form.city}
+                      onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      className="shrink-0 text-xs text-gray-400 hover:text-gray-600 px-2"
+                      onClick={() => { setCustomCity(false); setForm(f => ({ ...f, city: '' })) }}
+                      title="Välj från lista"
+                    >↩</button>
+                  </div>
+                ) : form.county && CITIES_BY_COUNTY[form.county] ? (
                   <select
                     className="input-field"
                     value={form.city}
-                    onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                    onChange={e => {
+                      if (e.target.value === '__custom__') {
+                        setCustomCity(true)
+                        setForm(f => ({ ...f, city: '' }))
+                      } else {
+                        setForm(f => ({ ...f, city: e.target.value }))
+                      }
+                    }}
                   >
                     <option value="">Välj stad</option>
                     {CITIES_BY_COUNTY[form.county].map(c => (
                       <option key={c} value={c}>{c}</option>
                     ))}
+                    <option value="__custom__">Annan ort (skriv in)…</option>
                   </select>
                 ) : (
                   <input

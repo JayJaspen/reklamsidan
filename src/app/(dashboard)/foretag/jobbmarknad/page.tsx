@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { JOB_COUNTIES, CITIES_BY_COUNTY } from '@/lib/utils'
 import { Loader2, Plus, Pencil, Trash2, CheckCircle, X, Eye, EyeOff, Info } from 'lucide-react'
 
-type JobCategory = { id: number; name: string }
+type JobCategory = { id: number; name: string; parent_id: number | null }
 
 type Job = {
   id: number
@@ -56,6 +56,7 @@ export default function ForetagJobbmarknad() {
   const [togglingId, setTogglingId]   = useState<number | null>(null)
   const [form, setForm]               = useState(EMPTY_FORM)
   const [error, setError]             = useState<string | null>(null)
+  const [customCity, setCustomCity]   = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -63,7 +64,7 @@ export default function ForetagJobbmarknad() {
       setCompanyId(user.id)
 
       const [{ data: cats }, { data: jobRows }, { data: company }] = await Promise.all([
-        supabase.from('job_categories').select('id,name').order('sort_order'),
+        supabase.from('job_categories').select('id,name,parent_id').order('sort_order'),
         supabase
           .from('jobs')
           .select('*')
@@ -84,10 +85,14 @@ export default function ForetagJobbmarknad() {
     setForm(EMPTY_FORM)
     setEditId(null)
     setError(null)
+    setCustomCity(false)
     setShowForm(true)
   }
 
   function openEdit(job: Job) {
+    // Check if city is a custom value (not in the county's predefined list)
+    const countyList = job.county ? (CITIES_BY_COUNTY[job.county] ?? []) : []
+    setCustomCity(!!job.city && !countyList.includes(job.city ?? ''))
     setForm({
       title:          job.title,
       description:    job.description,
@@ -189,6 +194,8 @@ export default function ForetagJobbmarknad() {
   }
 
   const availableCities = form.county ? (CITIES_BY_COUNTY[form.county] ?? []) : []
+  const parentCategories = categories.filter(c => c.parent_id === null)
+  const subCategories    = categories.filter(c => c.parent_id !== null)
   const catName = (id: number) => categories.find(c => c.id === id)?.name ?? ''
 
   if (loading) return <div className="py-20 text-center text-gray-400">Laddar...</div>
@@ -266,9 +273,17 @@ export default function ForetagJobbmarknad() {
                 onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
               >
                 <option value="">Välj kategori</option>
-                {categories.map(c => (
-                  <option key={c.id} value={String(c.id)}>{c.name}</option>
-                ))}
+                {parentCategories.map(parent => {
+                  const subs = subCategories.filter(c => c.parent_id === parent.id)
+                  if (subs.length === 0) return null
+                  return (
+                    <optgroup key={parent.id} label={parent.name}>
+                      {subs.map(sub => (
+                        <option key={sub.id} value={String(sub.id)}>{sub.name}</option>
+                      ))}
+                    </optgroup>
+                  )
+                })}
               </select>
             </div>
 
@@ -334,17 +349,43 @@ export default function ForetagJobbmarknad() {
                 </div>
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-600">Stad</label>
-                  <select
-                    className="input-field"
-                    value={form.city}
-                    onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
-                    disabled={!form.county}
-                  >
-                    <option value="">Välj stad</option>
-                    {availableCities.map(city => (
-                      <option key={city} value={city}>{city}</option>
-                    ))}
-                  </select>
+                  {customCity ? (
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="Ange stad..."
+                        value={form.city}
+                        onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                      />
+                      <button
+                        type="button"
+                        className="shrink-0 text-xs text-gray-400 hover:text-gray-600 px-2"
+                        onClick={() => { setCustomCity(false); setForm(f => ({ ...f, city: '' })) }}
+                        title="Välj från lista"
+                      >↩</button>
+                    </div>
+                  ) : (
+                    <select
+                      className="input-field"
+                      value={form.city}
+                      onChange={e => {
+                        if (e.target.value === '__custom__') {
+                          setCustomCity(true)
+                          setForm(f => ({ ...f, city: '' }))
+                        } else {
+                          setForm(f => ({ ...f, city: e.target.value }))
+                        }
+                      }}
+                      disabled={!form.county}
+                    >
+                      <option value="">Välj stad</option>
+                      {availableCities.map(city => (
+                        <option key={city} value={city}>{city}</option>
+                      ))}
+                      <option value="__custom__">Annan ort (skriv in)…</option>
+                    </select>
+                  )}
                 </div>
               </div>
             )}
