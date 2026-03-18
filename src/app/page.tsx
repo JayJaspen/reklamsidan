@@ -497,6 +497,8 @@ export default function LandingPage() {
             <Link href="/login" className="hover:text-gray-700">Logga in</Link>
             <Link href="/register" className="hover:text-gray-700">Registrera</Link>
             <a href="#kontakta-oss" className="hover:text-gray-700">Kontakta oss</a>
+            <Link href="/villkor" className="hover:text-gray-700">Villkor</Link>
+            <Link href="/integritet" className="hover:text-gray-700">Integritetspolicy</Link>
           </div>
         </div>
       </footer>
