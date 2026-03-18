@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /auth/
+Disallow: /b2c/
+Disallow: /b2b/
+Disallow: /foretag/
+
+Sitemap: https://www.reklamsidan.se/sitemap.xml

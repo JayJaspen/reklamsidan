@@ -39,6 +39,28 @@ export const metadata: Metadata = {
     ],
     shortcut: '/favicon.ico',
   },
+  openGraph: {
+    type: 'website',
+    locale: 'sv_SE',
+    url: 'https://www.reklamsidan.se',
+    siteName: 'Reklamsidan',
+    title: 'Reklamsidan – Digital reklam som når rätt mottagare',
+    description: 'Reklamsidan kopplar ihop annonsörer med rätt målgrupp – privatpersoner och företag som faktiskt vill ta emot reklam.',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Reklamsidan',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Reklamsidan – Digital reklam som når rätt mottagare',
+    description: 'Reklamsidan kopplar ihop annonsörer med rätt målgrupp – privatpersoner och företag som faktiskt vill ta emot reklam.',
+    images: ['/og-image.png'],
+  },
 }
 
 export default function RootLayout({
