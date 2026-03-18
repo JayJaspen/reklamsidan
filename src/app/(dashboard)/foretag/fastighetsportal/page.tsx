@@ -388,7 +388,7 @@ export default function ForetagFastighetsportal() {
               />
             </div>
 
-            {/* Adress, stad, län */}
+            {/* Adress, län, stad */}
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-600">Gatuadress</label>
@@ -399,6 +399,17 @@ export default function ForetagFastighetsportal() {
                   value={form.address}
                   onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
                 />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-600">Län *</label>
+                <select
+                  className="input-field"
+                  value={form.county}
+                  onChange={e => setForm(f => ({ ...f, county: e.target.value, city: '' }))}
+                >
+                  <option value="">Välj län</option>
+                  {JOB_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-600">Stad *</label>
@@ -423,17 +434,6 @@ export default function ForetagFastighetsportal() {
                     disabled={!form.county}
                   />
                 )}
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-gray-600">Län *</label>
-                <select
-                  className="input-field"
-                  value={form.county}
-                  onChange={e => setForm(f => ({ ...f, county: e.target.value, city: '' }))}
-                >
-                  <option value="">Välj län</option>
-                  {JOB_COUNTIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
               </div>
             </div>
 

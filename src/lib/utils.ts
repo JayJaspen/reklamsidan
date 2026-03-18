@@ -33,29 +33,29 @@ export const SWEDISH_COUNTIES = [
 /** The 21 real Swedish counties (index 1–21) used for job listings */
 export const JOB_COUNTIES = SWEDISH_COUNTIES.slice(0, 21) as readonly string[]
 
-/** Cities per county (keyed by county name) */
+/** Cities per county (keyed by county name) – orter med fler än 9 000 invånare */
 export const CITIES_BY_COUNTY: Record<string, string[]> = {
   'Blekinge län':         ['Karlskrona', 'Karlshamn', 'Ronneby', 'Sölvesborg', 'Olofström'],
-  'Dalarnas län':         ['Falun', 'Borlänge', 'Mora', 'Ludvika', 'Avesta', 'Leksand', 'Malung', 'Säter'],
-  'Gävleborgs län':       ['Gävle', 'Sandviken', 'Hudiksvall', 'Bollnäs', 'Söderhamn', 'Ljusdal'],
+  'Dalarnas län':         ['Falun', 'Borlänge', 'Avesta', 'Ludvika', 'Mora'],
+  'Gävleborgs län':       ['Gävle', 'Sandviken', 'Hudiksvall', 'Bollnäs', 'Söderhamn'],
   'Gotlands län':         ['Visby'],
-  'Hallands län':         ['Halmstad', 'Varberg', 'Falkenberg', 'Kungsbacka', 'Laholm', 'Ängelholm'],
-  'Jämtlands län':        ['Östersund', 'Åre', 'Krokom', 'Strömsund', 'Bräcke'],
-  'Jönköpings län':       ['Jönköping', 'Huskvarna', 'Nässjö', 'Värnamo', 'Eksjö', 'Tranås', 'Vetlanda'],
-  'Kalmar län':           ['Kalmar', 'Oskarshamn', 'Västervik', 'Nybro', 'Vimmerby', 'Borgholm'],
-  'Kronobergs län':       ['Växjö', 'Ljungby', 'Älmhult', 'Markaryd', 'Tingsryd'],
-  'Norrbottens län':      ['Luleå', 'Kiruna', 'Boden', 'Piteå', 'Gällivare', 'Haparanda', 'Kalix'],
-  'Skåne län':            ['Malmö', 'Helsingborg', 'Kristianstad', 'Lund', 'Landskrona', 'Ängelholm', 'Trelleborg', 'Ystad', 'Hässleholm', 'Eslöv', 'Vellinge'],
-  'Stockholms län':       ['Stockholm', 'Solna', 'Sundbyberg', 'Huddinge', 'Nacka', 'Sollentuna', 'Järfälla', 'Botkyrka', 'Haninge', 'Täby', 'Tyresö', 'Lidingö', 'Danderyd', 'Sigtuna', 'Norrtälje', 'Upplands Väsby', 'Vallentuna'],
-  'Södermanlands län':    ['Eskilstuna', 'Nyköping', 'Katrineholm', 'Strängnäs', 'Oxelösund', 'Flen', 'Gnesta'],
-  'Uppsala län':          ['Uppsala', 'Enköping', 'Tierp', 'Östhammar', 'Knivsta', 'Håbo'],
-  'Värmlands län':        ['Karlstad', 'Kristinehamn', 'Filipstad', 'Arvika', 'Säffle', 'Hagfors', 'Sunne'],
-  'Västerbottens län':    ['Umeå', 'Skellefteå', 'Lycksele', 'Vilhelmina', 'Storuman'],
-  'Västernorrlands län':  ['Sundsvall', 'Härnösand', 'Örnsköldsvik', 'Kramfors', 'Sollefteå'],
-  'Västmanlands län':     ['Västerås', 'Köping', 'Sala', 'Fagersta', 'Arboga', 'Hallstahammar', 'Norberg'],
-  'Västra Götalands län': ['Göteborg', 'Borås', 'Mölndal', 'Trollhättan', 'Skövde', 'Uddevalla', 'Halmstad', 'Vänersborg', 'Kungsbacka', 'Lidköping', 'Alingsås', 'Lerum', 'Stenungsund', 'Kungälv', 'Partille', 'Härryda', 'Mark'],
-  'Örebro län':           ['Örebro', 'Karlskoga', 'Kumla', 'Lekeberg', 'Hallsberg', 'Degerfors', 'Hällefors'],
-  'Östergötlands län':    ['Linköping', 'Norrköping', 'Motala', 'Mjölby', 'Söderköping', 'Åtvidaberg', 'Finspång', 'Vadstena'],
+  'Hallands län':         ['Halmstad', 'Kungsbacka', 'Varberg', 'Falkenberg'],
+  'Jämtlands län':        ['Östersund'],
+  'Jönköpings län':       ['Jönköping', 'Huskvarna', 'Värnamo', 'Nässjö', 'Vetlanda', 'Tranås', 'Eksjö'],
+  'Kalmar län':           ['Kalmar', 'Västervik', 'Oskarshamn', 'Nybro', 'Vimmerby'],
+  'Kronobergs län':       ['Växjö', 'Ljungby', 'Älmhult'],
+  'Norrbottens län':      ['Luleå', 'Kiruna', 'Piteå', 'Boden', 'Gällivare', 'Kalix'],
+  'Skåne län':            ['Malmö', 'Helsingborg', 'Lund', 'Kristianstad', 'Landskrona', 'Ängelholm', 'Trelleborg', 'Hässleholm', 'Ystad', 'Eslöv', 'Höganäs', 'Staffanstorp', 'Vellinge', 'Åstorp'],
+  'Stockholms län':       ['Stockholm', 'Södertälje', 'Huddinge', 'Botkyrka', 'Järfälla', 'Nacka', 'Haninge', 'Sollentuna', 'Solna', 'Täby', 'Tyresö', 'Sundbyberg', 'Upplands Väsby', 'Lidingö', 'Österåker', 'Upplands-Bro', 'Vallentuna', 'Norrtälje', 'Sigtuna', 'Nynäshamn', 'Värmdö'],
+  'Södermanlands län':    ['Eskilstuna', 'Nyköping', 'Katrineholm', 'Strängnäs', 'Oxelösund'],
+  'Uppsala län':          ['Uppsala', 'Enköping', 'Bålsta', 'Knivsta'],
+  'Värmlands län':        ['Karlstad', 'Kristinehamn', 'Arvika', 'Säffle', 'Filipstad'],
+  'Västerbottens län':    ['Umeå', 'Skellefteå'],
+  'Västernorrlands län':  ['Sundsvall', 'Örnsköldsvik', 'Härnösand'],
+  'Västmanlands län':     ['Västerås', 'Köping', 'Hallstahammar', 'Sala', 'Fagersta', 'Arboga'],
+  'Västra Götalands län': ['Göteborg', 'Borås', 'Mölndal', 'Trollhättan', 'Skövde', 'Uddevalla', 'Vänersborg', 'Kungälv', 'Lidköping', 'Alingsås', 'Partille', 'Lerum', 'Stenungsund', 'Falköping', 'Mariestad', 'Åmål', 'Lysekil', 'Strömstad', 'Mölnlycke', 'Kinna'],
+  'Örebro län':           ['Örebro', 'Karlskoga', 'Kumla', 'Hallsberg', 'Degerfors'],
+  'Östergötlands län':    ['Linköping', 'Norrköping', 'Motala', 'Mjölby', 'Finspång', 'Söderköping'],
 }
 
 export const AGE_GROUPS = [
