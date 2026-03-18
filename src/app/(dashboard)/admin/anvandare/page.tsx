@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
 import { Search, Download, Users } from 'lucide-react'
 import { SWEDISH_COUNTIES, AGE_GROUPS } from '@/lib/utils'
 
@@ -19,6 +20,7 @@ type UserResult = {
 
 export default function AdminAnvandare() {
   const supabase = createClient()
+  const { toast } = useToast()
 
   const [filter, setFilter] = useState({
     userType:    'all',
@@ -83,7 +85,7 @@ export default function AdminAnvandare() {
   }
 
   function handleExportPDF() {
-    alert('PDF-export: Implementeras i nästa omgång med server action + @react-pdf/renderer')
+    toast('PDF-export: Implementeras i nästa omgång med server action + @react-pdf/renderer', 'info')
   }
 
   return (

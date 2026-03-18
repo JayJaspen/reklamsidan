@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
 import { JOB_COUNTIES, CITIES_BY_COUNTY } from '@/lib/utils'
 import { ChevronDown, ChevronUp, Building2, X, Search, Bell, Loader2, Trash2, Plus, Eye, EyeOff } from 'lucide-react'
 
@@ -42,6 +43,7 @@ type Watchlist = {
 
 export default function B2BFastighetsportal() {
   const supabase = createClient()
+  const { confirm } = useToast()
 
   const [userId,      setUserId]      = useState<string | null>(null)
   const [properties,  setProperties]  = useState<Property[]>([])
@@ -199,7 +201,7 @@ export default function B2BFastighetsportal() {
   }
 
   async function deleteSeeker(id: number) {
-    if (!confirm('Ta bort sökes-annonsen?')) return
+    if (!await confirm('Ta bort sökes-annonsen?')) return
     setDeletingSeekerId(id)
     await supabase.from('property_seekers').delete().eq('id', id)
     setMySeekers(prev => prev.filter(s => s.id !== id))

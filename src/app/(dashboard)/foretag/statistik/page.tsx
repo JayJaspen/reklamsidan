@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BarChart3, Download, Users, TrendingUp, Check, XCircle } from 'lucide-react'
+import { useToast } from '@/components/Toast'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
 type Ad = {
@@ -48,6 +49,7 @@ type ReaderDetail = {
 
 export default function Statistics() {
   const supabase = createClient()
+  const { toast, confirm } = useToast()
   const [userId, setUserId] = useState<string | null>(null)
   const [ads, setAds] = useState<Ad[]>([])
   const [selectedAdId, setSelectedAdId] = useState<string | null>(null)
@@ -292,11 +294,11 @@ export default function Statistics() {
   }, [selectedAdId, followerIdArray])
 
   async function handleUnpublish(adId: string) {
-    if (!confirm('Är du säker på att du vill avpublicera detta reklamblad? Det blir omedelbart osynligt för användare.')) return
+    if (!await confirm('Är du säker på att du vill avpublicera detta reklamblad? Det blir omedelbart osynligt för användare.')) return
     setUnpublishing(adId)
     const { error } = await supabase.from('ads').update({ is_published: false }).eq('id', adId)
     if (error) {
-      alert('Kunde inte avpublicera: ' + error.message)
+      toast('Kunde inte avpublicera: ' + error.message, 'error')
     } else {
       setAds(prev => prev.filter(a => a.id !== adId))
     }

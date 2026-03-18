@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
 import { Plus, Pencil, Trash2, Check, X, Loader2 } from 'lucide-react'
 
 type Category = {
@@ -14,6 +15,7 @@ type Category = {
 
 export default function AdminKategorier() {
   const supabase = createClient()
+  const { toast, confirm } = useToast()
   const [activeTab, setActiveTab] = useState<'b2c' | 'b2b'>('b2c')
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,10 +53,10 @@ export default function AdminKategorier() {
   async function deleteCategory(id: number) {
     const hasChildren = categories.some(c => c.parent_id === id)
     if (hasChildren) {
-      alert('Ta bort underkategorierna först innan du tar bort huvudkategorin.')
+      toast('Ta bort underkategorierna först innan du tar bort huvudkategorin.', 'warning')
       return
     }
-    if (!confirm('Är du säker på att du vill ta bort denna kategori?')) return
+    if (!await confirm('Är du säker på att du vill ta bort denna kategori?')) return
     await supabase.from(table).delete().eq('id', id)
     await loadCategories()
   }

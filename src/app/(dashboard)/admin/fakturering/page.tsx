@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useToast } from '@/components/Toast'
 import { Download, Archive, TrendingUp, ChevronDown, ChevronRight, Briefcase, History, ChevronUp, Home, Users } from 'lucide-react'
 import { formatSEK } from '@/lib/utils'
 
@@ -96,6 +97,7 @@ type ArchiveEntry = {
 
 export default function AdminFakturering() {
   const supabase = createClient()
+  const { toast } = useToast()
   const [data, setData]                         = useState<BillingRow[]>([])
   const [adData, setAdData]                     = useState<AdRow[]>([])
   const [jobBilling, setJobBilling]             = useState<JobBillingRow[]>([])
@@ -373,7 +375,7 @@ export default function AdminFakturering() {
     setJobBilling([])
     setPropertyBilling([])
     setSeekerBilling([])
-    alert('Faktureringsunderlaget har arkiverats.')
+    toast('Faktureringsunderlaget har arkiverats.', 'success')
   }
 
   // Helper: compute totals for an archive entry

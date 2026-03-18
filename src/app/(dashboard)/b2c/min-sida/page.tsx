@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/Toast'
 import { Loader2, CheckCircle } from 'lucide-react'
 
 export default function B2CMinSida() {
   const supabase = createClient()
   const router = useRouter()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
   const [saved, setSaved]     = useState(false)
@@ -128,7 +130,7 @@ export default function B2CMinSida() {
     // Delete user profile – related rows (categories, favorites, ad_reads) cascade via FK
     const { error } = await supabase.from('users_b2c').delete().eq('id', userId)
     if (error) {
-      alert('Kunde inte avsluta tjänsten: ' + error.message)
+      toast('Kunde inte avsluta tjänsten: ' + error.message, 'error')
       setCancelling(false)
       return
     }

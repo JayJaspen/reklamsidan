@@ -8,6 +8,7 @@ import {
   CheckCircle, Info, Home, Building2, ImagePlus, XCircle,
   ChevronDown, ChevronUp, Search,
 } from 'lucide-react'
+import { useToast } from '@/components/Toast'
 
 // ── Priser ───────────────────────────────────────────────────
 const PRICE_B2C_FORSALJNING = 1990  // kr exkl. moms per annons
@@ -72,6 +73,7 @@ const EMPTY_FORM = {
 
 export default function ForetagFastighetsportal() {
   const supabase = createClient()
+  const { toast, confirm } = useToast()
 
   const [companyId,         setCompanyId]         = useState<string | null>(null)
   const [properties,        setProperties]        = useState<Property[]>([])
@@ -257,8 +259,7 @@ export default function ForetagFastighetsportal() {
     }
 
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    toast(editId ? 'Annonsen uppdaterades.' : 'Annonsen publicerades!')
     closeForm()
   }
 
@@ -271,7 +272,7 @@ export default function ForetagFastighetsportal() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Är du säker på att du vill ta bort denna annons?')) return
+    if (!await confirm('Är du säker på att du vill ta bort denna annons?')) return
     setDeletingId(id)
     await supabase.from('properties').update({ deleted_at: new Date().toISOString() }).eq('id', id)
     setProperties(prev => prev.filter(p => p.id !== id))

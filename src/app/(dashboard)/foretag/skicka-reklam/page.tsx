@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Upload, Send, Users } from 'lucide-react'
+import { useToast } from '@/components/Toast'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 
 const AGE_GROUPS = ['18-25', '26-35', '36-45', '46-55', '56-65', '65+']
@@ -32,6 +33,7 @@ function addMonths(date: Date, months: number): Date {
 
 export default function SkickaReklam() {
   const supabase = createClient()
+  const { toast } = useToast()
   const [userId, setUserId] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [adName, setAdName] = useState('')
@@ -179,7 +181,7 @@ export default function SkickaReklam() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!userId || !file || !adName || !validFrom || !validTo) {
-      alert('Fyll i alla obligatoriska fält')
+      toast('Fyll i alla obligatoriska fält', 'error')
       return
     }
 
@@ -190,19 +192,19 @@ export default function SkickaReklam() {
     const maxFrom  = addMonths(todayDate, 2)
     const maxTo    = addMonths(fromDate,  2)
     if (fromDate < todayDate) {
-      alert('Startdatum kan inte vara i det förflutna.')
+      toast('Startdatum kan inte vara i det förflutna.', 'error')
       return
     }
     if (fromDate > maxFrom) {
-      alert('Startdatum får vara max 2 månader framåt.')
+      toast('Startdatum får vara max 2 månader framåt.', 'error')
       return
     }
     if (toDate < fromDate) {
-      alert('Slutdatum måste vara samma dag eller efter startdatum.')
+      toast('Slutdatum måste vara samma dag eller efter startdatum.', 'error')
       return
     }
     if (toDate > maxTo) {
-      alert('Slutdatum får vara max 2 månader efter startdatum.')
+      toast('Slutdatum får vara max 2 månader efter startdatum.', 'error')
       return
     }
 
@@ -215,11 +217,11 @@ export default function SkickaReklam() {
       'video/mp4',
     ]
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      alert(`Filen är för stor. Max ${MAX_SIZE_MB} MB tillåtet.`)
+      toast(`Filen är för stor. Max ${MAX_SIZE_MB} MB tillåtet.`, 'error')
       return
     }
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      alert('Otillåten filtyp. Tillåtna format: PDF, JPG, PNG, MP4.')
+      toast('Otillåten filtyp. Tillåtna format: PDF, JPG, PNG, MP4.', 'error')
       return
     }
 
@@ -317,7 +319,7 @@ export default function SkickaReklam() {
       setTargeting({ type: 'b2c', genders: [], ageGroups: [], counties: [], categories: [] })
     } catch (error) {
       console.error('Error:', error)
-      alert(`Fel vid skapande av annons: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
+      toast(`Fel vid skapande av annons: ${error instanceof Error ? error.message : JSON.stringify(error)}`, 'error')
     } finally {
       setUploading(false)
     }

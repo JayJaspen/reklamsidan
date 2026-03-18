@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { JOB_COUNTIES, CITIES_BY_COUNTY } from '@/lib/utils'
 import { Loader2, Plus, Pencil, Trash2, CheckCircle, X, Eye, EyeOff, Info } from 'lucide-react'
+import { useToast } from '@/components/Toast'
 
 type JobCategory = { id: number; name: string; parent_id: number | null }
 
@@ -42,6 +43,7 @@ const EMPTY_FORM = {
 
 export default function ForetagJobbmarknad() {
   const supabase = createClient()
+  const { toast, confirm } = useToast()
 
   const [companyId, setCompanyId]     = useState<string | null>(null)
   const [companyLogo, setCompanyLogo] = useState<string | null>(null)
@@ -167,13 +169,12 @@ export default function ForetagJobbmarknad() {
     }
 
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    toast(editId ? 'Annonsen uppdaterades.' : 'Annonsen publicerades!')
     closeForm()
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Är du säker på att du vill ta bort detta jobb?')) return
+    if (!await confirm('Är du säker på att du vill ta bort detta jobb?')) return
     setDeletingId(id)
     await supabase.from('jobs').update({ deleted_at: new Date().toISOString() }).eq('id', id)
     setJobs(prev => prev.filter(j => j.id !== id))

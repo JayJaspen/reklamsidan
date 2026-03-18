@@ -4,11 +4,13 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { SWEDISH_COUNTIES } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/Toast'
 import { Loader2, CheckCircle, Upload } from 'lucide-react'
 
 export default function ForetagMinSida() {
   const supabase = createClient()
   const router = useRouter()
+  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -144,7 +146,7 @@ export default function ForetagMinSida() {
       setTimeout(() => setSaved(false), 3000)
     } catch (error) {
       console.error('Error uploading logo:', error)
-      alert(`Fel vid uppladdning av logga: ${error instanceof Error ? error.message : JSON.stringify(error)}`)
+      toast(`Fel vid uppladdning av logga: ${error instanceof Error ? error.message : JSON.stringify(error)}`, 'error')
     } finally {
       setSaving(false)
     }
@@ -216,7 +218,7 @@ export default function ForetagMinSida() {
       setTimeout(() => setSaved(false), 3000)
     } catch (error) {
       console.error('Error saving:', error)
-      alert('Fel vid sparande')
+      toast('Fel vid sparande', 'error')
       setSaving(false)
     }
   }
@@ -226,7 +228,7 @@ export default function ForetagMinSida() {
     setCancelling(true)
     const { error } = await supabase.from('companies').update({ is_active: false }).eq('id', userId)
     if (error) {
-      alert('Kunde inte avsluta tjänsten: ' + error.message)
+      toast('Kunde inte avsluta tjänsten: ' + error.message, 'error')
       setCancelling(false)
       return
     }
