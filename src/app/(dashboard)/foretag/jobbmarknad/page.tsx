@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { JOB_COUNTIES, CITIES_BY_COUNTY } from '@/lib/utils'
-import { Loader2, Plus, Pencil, Trash2, CheckCircle, X, Eye, EyeOff, Info } from 'lucide-react'
+import { Loader2, Plus, Pencil, Trash2, X, Eye, EyeOff, Info } from 'lucide-react'
 import { useToast } from '@/components/Toast'
 
 type JobCategory = { id: number; name: string; parent_id: number | null }
@@ -53,7 +53,6 @@ export default function ForetagJobbmarknad() {
   const [showForm, setShowForm]       = useState(false)
   const [editId, setEditId]           = useState<number | null>(null)
   const [saving, setSaving]           = useState(false)
-  const [saved, setSaved]             = useState(false)
   const [deletingId, setDeletingId]   = useState<number | null>(null)
   const [togglingId, setTogglingId]   = useState<number | null>(null)
   const [form, setForm]               = useState(EMPTY_FORM)
@@ -210,11 +209,6 @@ export default function ForetagJobbmarknad() {
           <p className="text-sm text-gray-500">Publicera och hantera dina jobbannonser</p>
         </div>
         <div className="flex items-center gap-3">
-          {saved && (
-            <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
-              <CheckCircle className="h-4 w-4" /> Sparat!
-            </span>
-          )}
           <button onClick={openNew} className="btn-primary">
             <Plus className="h-4 w-4" /> Ny annons
           </button>

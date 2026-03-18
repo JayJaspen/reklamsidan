@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { JOB_COUNTIES, CITIES_BY_COUNTY } from '@/lib/utils'
 import {
   Plus, Pencil, Trash2, Eye, EyeOff, Loader2, X,
-  CheckCircle, Info, Home, Building2, ImagePlus, XCircle,
+  Info, Home, Building2, ImagePlus, XCircle,
   ChevronDown, ChevronUp, Search,
 } from 'lucide-react'
 import { useToast } from '@/components/Toast'
@@ -81,7 +81,6 @@ export default function ForetagFastighetsportal() {
   const [showForm,          setShowForm]          = useState(false)
   const [editId,            setEditId]            = useState<number | null>(null)
   const [saving,            setSaving]            = useState(false)
-  const [saved,             setSaved]             = useState(false)
   const [deletingId,        setDeletingId]        = useState<number | null>(null)
   const [togglingId,        setTogglingId]        = useState<number | null>(null)
   const [form,              setForm]              = useState(EMPTY_FORM)
@@ -301,11 +300,6 @@ export default function ForetagFastighetsportal() {
           <p className="text-sm text-gray-500">Publicera fastigheter till försäljning eller uthyrning</p>
         </div>
         <div className="flex items-center gap-3">
-          {saved && (
-            <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
-              <CheckCircle className="h-4 w-4" /> Sparat!
-            </span>
-          )}
           <button onClick={openNew} className="btn-primary">
             <Plus className="h-4 w-4" /> Ny annons
           </button>
