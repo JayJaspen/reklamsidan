@@ -47,6 +47,7 @@ export default function B2BFavoritreklam() {
           .from('properties')
           .select('id, company_id, property_type, listing_type, title, description, address, city, county, price, price_period, size_sqm, build_year, image_urls, contact_name, contact_phone, contact_email')
           .eq('is_active', true)
+          .is('deleted_at', null)
           .in('property_type', B2B_TYPES)
           .order('created_at', { ascending: false })
 
