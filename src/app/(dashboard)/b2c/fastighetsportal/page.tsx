@@ -100,6 +100,7 @@ export default function B2CFastighetsportal() {
       .from('properties')
       .select('id,company_id,property_type,listing_type,title,description,address,city,county,price,price_period,monthly_fee,size_sqm,rooms,build_year,image_urls,created_at,contact_name,contact_phone,contact_email')
       .eq('is_active', true)
+      .is('deleted_at', null)
       .in('property_type', [...B2C_TYPES])
       .order('created_at', { ascending: false })
 

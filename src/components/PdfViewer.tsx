@@ -142,7 +142,7 @@ export default function PdfViewer({ url, zoom = 1 }: Props) {
     <div className="flex flex-col items-center gap-3">
       {/* Canvas – PDF-sidan renderas här */}
       <div className="w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-        <canvas ref={canvasRef} className="block w-full" />
+        <canvas ref={canvasRef} className="block" />
       </div>
 
       {/* Bläddringskontroller */}
